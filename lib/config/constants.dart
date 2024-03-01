@@ -39,7 +39,7 @@ const double minimumRiskLevel = 0.05;
 const double maximumRiskLevel = 0.25;
 const double stepsRiskLevel = 0.05;
 
-const double priceVariation = 0.20; // varies price of asset by +/- 20%
+const double priceVariation = 0.40; // varies price of asset by +/- 40%
 const int incomeVariation = 1; // varies income of asset by +/- $1
 
 enum BuyDecision {
