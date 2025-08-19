@@ -1,10 +1,12 @@
+// lib/presentation/widgets/asset_carousel.dart
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:carousel_slider/carousel_slider.dart';
-import 'package:financial_literacy_game/domain/utils/utils.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:financial_literacy_game/l10n/app_localizations.dart';
+import 'package:financial_literacy_game/domain/utils/intl_fallback.dart';
+import 'package:financial_literacy_game/domain/utils/utils.dart';
 import '../../config/color_palette.dart';
 import '../../domain/concepts/asset.dart';
 import '../../domain/game_data_notifier.dart';
@@ -13,6 +15,7 @@ class AssetCarousel extends ConsumerWidget {
   final List<Asset> assets;
   final AutoSizeGroup textGroup;
   final Function changingIndex;
+
   const AssetCarousel({
     Key? key,
     required this.assets,
@@ -22,37 +25,41 @@ class AssetCarousel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final l10n = AppLocalizations.of(context)!;
+    final localeCode = Localizations.localeOf(context).toString();
+    final notifier = ref.read(gameDataNotifierProvider.notifier);
+
     // build widget to display from asset
-    List<Widget> widgetList = [];
-    for (Asset asset in assets) {
+    final widgetList = <Widget>[];
+    for (final asset in assets) {
       widgetList.add(
         LayoutBuilder(builder: (context, constraints) {
           String assetName;
           switch (asset.type) {
             case AssetType.pig:
-              {
-                assetName = AppLocalizations.of(context)!.pig;
-              }
+              assetName = l10n.pig;
               break;
-
             case AssetType.chicken:
-              {
-                assetName = AppLocalizations.of(context)!.chicken;
-              }
+              assetName = l10n.chicken;
               break;
-
             case AssetType.goat:
-              {
-                assetName = AppLocalizations.of(context)!.goat;
-              }
+              assetName = l10n.goat;
               break;
-
             default:
-              {
-                assetName = AppLocalizations.of(context)!.chicken;
-              }
-              break;
+              assetName = l10n.chicken;
           }
+
+          // format strings expected by l10n (no doubles passed directly)
+          final priceStr = formatAmount(
+            notifier.convertAmount(asset.price),
+            localeCode,
+            currency: 'UGX',
+          );
+          final incomeStr = formatAmount(
+            notifier.convertAmount(asset.income),
+            localeCode,
+            currency: 'UGX',
+          );
 
           return Container(
             height: constraints.maxHeight,
@@ -64,7 +71,6 @@ class AssetCarousel extends ConsumerWidget {
             child: Padding(
               padding: const EdgeInsets.all(5.0),
               child: Column(
-                //mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Expanded(
@@ -75,7 +81,6 @@ class AssetCarousel extends ConsumerWidget {
                         '${asset.numberOfAnimals} x $assetName',
                         style: const TextStyle(
                           fontSize: 20,
-                          //fontWeight: FontWeight.bold,
                           color: Colors.white,
                         ),
                       ),
@@ -93,9 +98,7 @@ class AssetCarousel extends ConsumerWidget {
                   Expanded(
                     flex: 2,
                     child: AutoSizeText(
-                      AppLocalizations.of(context)!.price(ref
-                          .read(gameDataNotifierProvider.notifier)
-                          .convertAmount(asset.price)),
+                      l10n.price(priceStr),
                       style: const TextStyle(
                         fontSize: 100,
                         color: Colors.white,
@@ -106,9 +109,7 @@ class AssetCarousel extends ConsumerWidget {
                   Expanded(
                     flex: 2,
                     child: AutoSizeText(
-                      AppLocalizations.of(context)!.incomePerYear(ref
-                          .read(gameDataNotifierProvider.notifier)
-                          .convertAmount(asset.income)),
+                      l10n.incomePerYear(incomeStr),
                       style: const TextStyle(
                         fontSize: 100,
                         color: Colors.white,
@@ -119,9 +120,7 @@ class AssetCarousel extends ConsumerWidget {
                   Expanded(
                     flex: 2,
                     child: AutoSizeText(
-                      AppLocalizations.of(context)!
-                          .lifeExpectancy(asset.lifeExpectancy)
-                          .capitalize(),
+                      l10n.lifeExpectancy(asset.lifeExpectancy).capitalize(),
                       style: const TextStyle(
                         fontSize: 100,
                         color: Colors.white,
@@ -133,9 +132,9 @@ class AssetCarousel extends ConsumerWidget {
                     Expanded(
                       flex: 2,
                       child: AutoSizeText(
-                        AppLocalizations.of(context)!
-                            .lifeRisk((100 / (asset.riskLevel * 100))
-                                .toStringAsFixed(0))
+                        l10n
+                            .lifeRisk(
+                            (100 / (asset.riskLevel * 100)).toStringAsFixed(0))
                             .capitalize(),
                         style: TextStyle(
                           fontSize: 100,
@@ -154,13 +153,11 @@ class AssetCarousel extends ConsumerWidget {
 
     return CarouselSlider(
       options: CarouselOptions(
-          aspectRatio: 1.0,
-          //viewportFraction: 0.8,
-          enlargeCenterPage: true,
-          enableInfiniteScroll: false,
-          onPageChanged: (index, reason) {
-            changingIndex(index);
-          }),
+        aspectRatio: 1.0,
+        enlargeCenterPage: true,
+        enableInfiniteScroll: false,
+        onPageChanged: (index, reason) => changingIndex(index),
+      ),
       items: widgetList,
     );
   }

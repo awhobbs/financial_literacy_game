@@ -1,433 +1,286 @@
 {
-    "language": "English - USD",
-    "@language":{
-        "description": "The current Language"
-    },
-    "titleSignIn": "welcome to the FinSim Game",
-    "@titleSignIn":{
-        "description": "Welcoming users to the Game"
-    },
-    "welcomeText": "Dear participants,\nthis game is meant to mimic financial investments. It will only be used for the purpose of teaching. This game will not affect the relationship with your bank.\nPlease enter your code below:",
-    "@welcomeText":{
-        "description": "welcome instructions for users when opening the app"
-    },
+  "@@locale": "en_US",
 
-    "hintFirstName": "first name",
-    "@hintFirstName":{
-        "description": "Hint text for user to enter the first name"
-    },
-    "hintLastName": "last name",
-    "@hintLastName":{
-        "description": "Hint text for user to enter the last name"
-    },
+  "language": "English - USD",
+  "@language": {"description": "The current Language"},
 
-    "continueButton": "continue",
-    "@continueButton":{
-        "description": "Button after user entered name to continue to play"
-    },
-    "overview": "overview",
-    "@overview":{
-        "description": "Title for overview section of financial situation"
-    },
-    "personal": "personal",
-    "@personal":{
-        "description": "Title for overview section of personal expenses. Currently not used in app"
-    },
-    "assets": "income from assets",
-    "@assets":{
-        "description": "Title for overview section of assets that the user owns and income they generate"
-    },
-    "pig": "pig",
-    "@pig":{
-        "description": "Asset pig that user can buy"
-    },
-    "chicken": "chicken",
-    "@chicken":{
-        "description": "Asset chicken that user can buy"
-    },
-    "goat": "goat",
-    "@goat":{
-        "description": "Asset goat that user can buy"
-    },
-    "error": "error",
-    "@error":{
-        "description": "error alert when user does not have enough cash"
-    },
-    "cashAlert": "not enough cash!",
-    "@cashAlert":{
-        "description": "warning message that user does not have enough cash"
-    },
-    "confirm": "okay",
-    "@confirm":{
-        "description": "asks user to confirm with okay"
-    },
-    "howToPlay": "How to Play",
-    "@howToPlay":{
-        "description": "Title that tells people how to play the game"
-    },
-    "instructionText1": "1. To start the game click the “NEXT” button in the top right corner.",
-    "@instructionText1":{
-        "description": "First instruction on how to play the game"
-    },
-    "instructionText2": "2. You can buy an animal with cash, take a loan or decide not to buy the asset.",
-    "@instructionText2":{
-        "description": "Second instruction on how to play the game"
-    },
-    "instructionText3": "3. Each round animals vary in price, income and life expectancy.",
-    "@instructionText3":{
-        "description": "Third instruction on how to play the game"
-    },
-    "instructionText4": "4. You might find the calculations underneath the animal card helpful.",
-    "@instructionText4":{
-        "description": "Fourth instruction on how to play the game"
-    },
-    "instructionText5": "5. You have to reach a certain cash amount to make it to the next level.",
-    "@instructionText5":{
-        "description": "Fifth instruction on how to play the game"
-    },
-    "instructionText6": "6. You can find these game instructions in the settings menu.",
-    "@instructionText6":{
-        "description": "Sixth instruction on how to play the game"
-    },
-    "warning": "warning",
-    "@warning":{
-        "description": "title of warning dialog"
-    },
-    "investmentOptions": "Investment Options",
-    "@investmentOptions":{
-        "description": "title to show investment options"
-    },
-    "tip": "tip",
-    "@tip":{
-        "description": "tip that is displayed for users"
-    },
-    "dontBuy": "don't buy",
-    "@dontBuy":{
-        "description": "option for user to not buy asset"
-    },
-    "payCash": "pay cash",
-    "@payCash":{
-        "description": "option for user to buy asset in cash"
-    },
-    "borrow": "borrow",
-    "@borrow":{
-        "description": "option for user to buy asset via loan"
-    },
-    "lostGame": "unfortunately you ran out of cash. You can either restart this level or start a new game.",
-    "@lostGame":{
-        "description": "warning message when the user lost because they ran out of cash"
-    },
-    "restartLevel": "restart level",
-    "@restartLevel":{
-        "description": "start level again after losing"
-    },
-    "restartGame": "restart game",
-    "@restartGame":{
-        "description": "start game again after restarting app"
-    },
-    "settings": "settings",
-    "@settings":{
-        "description": "settings option for user"
-    },
-    "clearCache": "clear cache",
-    "@clearCache":{
-        "description": "clearing cache from local device"
-    },
-    "nextLevel": "next level",
-    "@nextLevel":{
-        "description": "allows user to advance to next level. Only used for testing"
-    },
-    "enterUID": "please enter a 7 digit code",
-    "@enterUID":{
-        "description": "Hint text for user to enter their 7 digit code"
-    },
-    "enterName": "please enter first and last name.",
-    "@enterName":{
-        "description": "Hint text for user to enter their first and last name"
-    },
-    "congratulations": "congratulations",
-    "@congratulations":{
-        "description": "Congratulations dialog after user completed level"
-    },
-    "reachedNextLevel": "you have reached the next level!",
-    "@reachedNextLevel":{
-        "description": "Message when user completed level"
-    },
-    "next": "next",
-    "@next":{
-        "description": "next button text"
-    },
-    "cash": "cash",
-    "@cash":{
-        "description": "pay with cash"
-    },
-    "interestAmount": "Total interest amount",
-    "@interestAmount":{
-        "description": "Total interest amount for each investment option when the loans option is displayed"
-    },
-    "expenses": "expenses",
-    "@expenses":{
-        "description": "expenses per period"
-    },
-    "gameFinished": "congratulations you finished the game successfully!",
-    "@gameFinished":{
-        "description": "dialog when user finished the game"
-    },
+  "titleSignIn": "welcome to the FinSim Game",
+  "@titleSignIn": {"description": "Welcoming users to the Game"},
 
-    "restart": "restart",
-    "@restart":{
-        "description": "restart the game button"
-    },
-    "notMe": "that's not me",
-    "@notMe":{
-        "description": "indicating that it's another user playing the game"
-    },
-    "signInDifferentPerson": "if that is not you, please sign in as a different person.",
-    "@signInDifferentPerson":{
-        "description": "Text in welcome back screen indicating if another user plays the game"
-    },
-    "loan": "{count, plural, =1{loan} other{loans}}",
-    "@loan":{
-        "description": "Translate loan and loans in brackets to be used",
-        "placeholders": {
-            "count": {
-                "type": "num",
-                "example": "loans"
-            }
-        }
-    },
-    "price": "Price: ${cashAmount}",
-    "@price":{
-        "description": "Price for asset",
-        "placeholders": {
-            "cashAmount": {
-                "type": "double",
-                "format": "decimalPatternDigits",
-                "optionalParameters": {
-                    "decimalDigits": 2
-                },
-                "example": "Price: $15.00"
-            }
-        }
-    },
-    "incomePerYear": "Income: ${cashAmount} per year",
-    "@incomePerYear":{
-        "description": "Income per period for asset",
-        "placeholders": {
-            "cashAmount": {
-                "type": "double",
-                "format": "decimalPatternDigits",
-                "optionalParameters": {
-                    "decimalDigits": 2
-                },
-                "example": "Price: $15.00"
-            }
-        }
-    },
-    "income": "income",
-    "@income":{
-        "description": "title using income"
-    },
+  "welcomeText": "Dear participants,\nthis game is meant to mimic financial investments. It will only be used for the purpose of teaching. This game will not affect the relationship with your bank.\nPlease enter your code below:",
+  "@welcomeText": {"description": "welcome instructions for users when opening the app"},
 
-    "lifeExpectancy": "life expectancy: {yearsNum} years",
-    "@lifeExpectancy":{
-        "description": "how long an asset will live",
-        "placeholders": {
-            "yearsNum": {
-                "type": "int",
-                "example": "Life expectancy: 4 years"
-            }
-        }
-    },
-    "lifeRisk": "risk: 1 out of {number} will not survive",
-    "@lifeRisk":{
-        "description": "risk level described as one out of number will not survive",
-        "placeholders": {
-            "number": {
-                "type": "String",
-                "example": "5"
-            }
-        }
-    },
-    "cashGoal": "cash goal",
-    "@cashGoal":{
-        "description": "cash that player needs to accumulate to advance to next level"
-    },
-    "assetDied": "{asset} has died!",
-    "@assetDied":{
-        "description": "dialog when the asset has died",
-        "placeholders": {
-            "asset": {
-                "type": "String",
-                "example": "pig"
-            }
-        }
-    },
-    "assetsDied": "animals have died!",
-    "@assetsDied":{
-        "description": "dialog when the assets have died"
-    },
-    "currentCash": "your current cash: ${cashAmount}",
-    "@currentCash":{
-        "description": "displays the current amount of cash a user has",
-        "placeholders": {
-            "cashAmount": {
-                "type": "double",
-                "format": "decimalPatternDigits",
-                "optionalParameters": {
-                    "decimalDigits": 2
-                },
-                "example": "Price: $15.00"
-            }
-        }
-    },
-    "borrowAt": "borrow at {interestRate}% simple interest over 2 periods",
-    "@borrowAt":{
-        "description": "displays at which interest rate the user can borrow money. E.g borrow at 12% interest rate",
-        "placeholders": {
-            "interestRate": {
-                "type": "String",
-                "example": "12"
-            }
-        }
-    },
-    "interestCash": "• Interest rate on cash is {interestRate}% / year",
-    "@interestCash":{
-        "description": "Interest rate on cash when saving, not used right now",
-        "placeholders": {
-            "interestRate": {
-                "type": "String",
-                "example": "12"
-            }
-        }
-    },
-    "level": "level {level} / {levelTotal} (Period: {period})",
-    "@level":{
-        "description": "Level which user is in out of all levels",
-        "placeholders": {
-            "level": {
-                "type": "int",
-                "example": "2"},
-            "levelTotal": {
-                "type": "int",
-                "example": "6"
-            }
-        }
-    },
-    "cashGoalReach": "cash goal: reach ${cashAmount} ",
-    "@cashGoalReach":{
-        "description": "Cash goal that user needs to reach. E.g Cash Goal: reach 75",
-        "placeholders": {
-            "cashAmount": {
-                "type": "double",
-                "format": "decimalPatternDigits",
-                "optionalParameters": {
-                    "decimalDigits": 2
-                },
-                "example": "cash goal: reach $15.00"
-            }
-        }
-    },
-    "languagesTitle": "languages",
-    "@languagesTitle":{
-        "description": "Title in Language setting"
-    },
-    "sameUser": "If you are {firstName}, simply start the game.",
-    "@sameUser": {
-        "description:": "asks if the user is the same that logs back in",
-        "placeholders": {
-            "firstName": {
-                "type": "String",
-                "example": "John"
-            }
-        }
-    },
-    "startAtLevel": "start at level {level}",
-    "@startAtLevel":{
-        "description": "At which level the user can start the game",
-        "placeholders": {
-            "level": {
-                "type": "String",
-                "example": "5"
-            }
-        }
-    },
-    "welcomeBack": "Welcome back, {firstName} {lastName}!",
-    "@welcomeBack":{
-        "description": "Welcomes back user e.g Welcome back, John Doe",
-        "placeholders": {
-            "firstName": {
-                "type": "String",
-                "example": "John"
-            },
-            "lastName": {
-                "type": "String",
-                "example": "Doe"
-            }
-        }
-    },
-    "cashValue": "${value}",
-    "@cashValue": {
-    "description" : "How cash values are displayed in App",
+  "hintFirstName": "first name",
+  "@hintFirstName": {"description": "Hint text for user to enter the first name"},
+
+  "hintLastName": "last name",
+  "@hintLastName": {"description": "Hint text for user to enter the last name"},
+
+  "continueButton": "continue",
+  "@continueButton": {"description": "Button after user entered name to continue to play"},
+
+  "overview": "overview",
+  "@overview": {"description": "Title for overview section of financial situation"},
+
+  "personal": "personal",
+  "@personal": {"description": "Title for overview section of personal expenses. Currently not used in app"},
+
+  "assets": "income from assets",
+  "@assets": {"description": "Title for overview section of assets that the user owns and income they generate"},
+
+  "pig": "pig",
+  "@pig": {"description": "Asset pig that user can buy"},
+
+  "chicken": "chicken",
+  "@chicken": {"description": "Asset chicken that user can buy"},
+
+  "goat": "goat",
+  "@goat": {"description": "Asset goat that user can buy"},
+
+  "error": "error",
+  "@error": {"description": "error alert when user does not have enough cash"},
+
+  "cashAlert": "not enough cash!",
+  "@cashAlert": {"description": "warning message that user does not have enough cash"},
+
+  "confirm": "okay",
+  "@confirm": {"description": "asks user to confirm with okay"},
+
+  "howToPlay": "How to Play",
+  "@howToPlay": {"description": "Title that tells people how to play the game"},
+
+  "instructionText1": "1. To start the game click the “NEXT” button in the top right corner.",
+  "@instructionText1": {"description": "First instruction on how to play the game"},
+
+  "instructionText2": "2. You can buy an animal with cash, take a loan or decide not to buy the asset.",
+  "@instructionText2": {"description": "Second instruction on how to play the game"},
+
+  "instructionText3": "3. Each round animals vary in price, income and life expectancy.",
+  "@instructionText3": {"description": "Third instruction on how to play the game"},
+
+  "instructionText4": "4. You might find the calculations underneath the animal card helpful.",
+  "@instructionText4": {"description": "Fourth instruction on how to play the game"},
+
+  "instructionText5": "5. You have to reach a certain cash amount to make it to the next level.",
+  "@instructionText5": {"description": "Fifth instruction on how to play the game"},
+
+  "instructionText6": "6. You can find these game instructions in the settings menu.",
+  "@instructionText6": {"description": "Sixth instruction on how to play the game"},
+
+  "warning": "warning",
+  "@warning": {"description": "title of warning dialog"},
+
+  "investmentOptions": "Investment Options",
+  "@investmentOptions": {"description": "title to show investment options"},
+
+  "tip": "tip",
+  "@tip": {"description": "tip that is displayed for users"},
+
+  "dontBuy": "don''t buy",
+  "@dontBuy": {"description": "option for user to not buy asset"},
+
+  "payCash": "pay cash",
+  "@payCash": {"description": "option for user to buy asset in cash"},
+
+  "borrow": "borrow",
+  "@borrow": {"description": "option for user to buy asset via loan"},
+
+  "lostGame": "unfortunately you ran out of cash. You can either restart this level or start a new game.",
+  "@lostGame": {"description": "warning message when the user lost because they ran out of cash"},
+
+  "restartLevel": "restart level",
+  "@restartLevel": {"description": "start level again after losing"},
+
+  "restartGame": "restart game",
+  "@restartGame": {"description": "start game again after restarting app"},
+
+  "settings": "settings",
+  "@settings": {"description": "settings option for user"},
+
+  "clearCache": "clear cache",
+  "@clearCache": {"description": "clearing cache from local device"},
+
+  "nextLevel": "next level",
+  "@nextLevel": {"description": "allows user to advance to next level. Only used for testing"},
+
+  "enterUID": "please enter a 7 digit code",
+  "@enterUID": {"description": "Hint text for user to enter their 7 digit code"},
+
+  "enterName": "please enter first and last name.",
+  "@enterName": {"description": "Hint text for user to enter their first and last name"},
+
+  "congratulations": "congratulations",
+  "@congratulations": {"description": "Congratulations dialog after user completed level"},
+
+  "reachedNextLevel": "you have reached the next level!",
+  "@reachedNextLevel": {"description": "Message when user completed level"},
+
+  "next": "next",
+  "@next": {"description": "next button text"},
+
+  "cash": "cash",
+  "@cash": {"description": "pay with cash"},
+
+  "interestAmount": "Total interest amount",
+  "@interestAmount": {"description": "Total interest amount for each investment option when the loans option is displayed"},
+
+  "expenses": "expenses",
+  "@expenses": {"description": "expenses per period"},
+
+  "gameFinished": "congratulations you finished the game successfully!",
+  "@gameFinished": {"description": "dialog when user finished the game"},
+
+  "restart": "restart",
+  "@restart": {"description": "restart the game button"},
+
+  "notMe": "that''s not me",
+  "@notMe": {"description": "indicating that it's another user playing the game"},
+
+  "signInDifferentPerson": "if that is not you, please sign in as a different person.",
+  "@signInDifferentPerson": {"description": "Text in welcome back screen indicating if another user plays the game"},
+
+  "loan": "{count, plural, =1{loan} other{loans}}",
+  "@loan": {
+    "description": "Translate loan and loans in brackets to be used",
+    "placeholders": {"count": {"type": "num", "example": "loans"}}
+  },
+
+  "price": "Price: {cashAmount}",
+  "@price": {
+    "description": "Price for asset",
+    "placeholders": {"cashAmount": {"type": "String", "example": "Price: $15.00"}}
+  },
+
+  "incomePerYear": "Income: {cashAmount} per year",
+  "@incomePerYear": {
+    "description": "Income per period for asset",
+    "placeholders": {"cashAmount": {"type": "String", "example": "Income: $15.00 per year"}}
+  },
+
+  "income": "income",
+  "@income": {"description": "title using income"},
+
+  "lifeExpectancy": "life expectancy: {yearsNum} years",
+  "@lifeExpectancy": {
+    "description": "how long an asset will live",
+    "placeholders": {"yearsNum": {"type": "int", "example": "Life expectancy: 4 years"}}
+  },
+
+  "lifeRisk": "risk: 1 out of {number} will not survive",
+  "@lifeRisk": {
+    "description": "risk level described as one out of number will not survive",
+    "placeholders": {"number": {"type": "String", "example": "5"}}
+  },
+
+  "cashGoal": "cash goal",
+  "@cashGoal": {"description": "cash that player needs to accumulate to advance to next level"},
+
+  "assetDied": "{asset} has died!",
+  "@assetDied": {
+    "description": "dialog when the asset has died",
+    "placeholders": {"asset": {"type": "String", "example": "pig"}}
+  },
+
+  "assetsDied": "animals have died!",
+  "@assetsDied": {"description": "dialog when the assets have died"},
+
+  "currentCash": "your current cash: {cashAmount}",
+  "@currentCash": {
+    "description": "displays the current amount of cash a user has",
+    "placeholders": {"cashAmount": {"type": "String", "example": "Your current cash: $15.00"}}
+  },
+
+  "borrowAt": "borrow at {interestRate}% simple interest over 2 periods",
+  "@borrowAt": {
+    "description": "displays at which interest rate the user can borrow money. E.g borrow at 12% interest rate",
+    "placeholders": {"interestRate": {"type": "String", "example": "12"}}
+  },
+
+  "interestCash": "• Interest rate on cash is {interestRate}% / year",
+  "@interestCash": {
+    "description": "Interest rate on cash when saving, not used right now",
+    "placeholders": {"interestRate": {"type": "String", "example": "12"}}
+  },
+
+  "level": "level {level} / {levelTotal} (Period: {period})",
+  "@level": {
+    "description": "Level which user is in out of all levels",
     "placeholders": {
-     "value": {
-         "type": "double",
-         "format": "decimalPatternDigits",
-         "optionalParameters": {
-             "decimalDigits": 2
-         },
-         "example": "$15.00"
+      "level": {"type": "int", "example": "2"},
+      "levelTotal": {"type": "int", "example": "6"},
+      "period": {"type": "Object", "example": "1"}
     }
-  }
- },
-    "selectLanguage": "Please select language:",
-    "@selectLanguage":{
-        "description": "Dialog when asking user about language"
-    },
-    "hintUID": "e.g. UGRT999",
-    "@hintUID":{
-        "description": "Hint text for user to enter their UID, for example XH5YT"
-    },
-    "confirmNameTitle": "Confirm your name",
-    "@confirmNameTitle":{
-        "description": "Ask user to confirm their name"
-    },
-    "confirmName": "Are you {firstName} {lastName}?",
-    "@confirmName":{
-            "description": "Display User name to confirm",
-            "placeholders": {
-                "firstName": {
-                    "type": "String",
-                    "example": "John"
-                },
-                "lastName": {
-                    "type": "String",
-                    "example": "Doe"
-                }
-            }
-        },
-    "noButton": "No",
-    "@noButton":{
-        "description": "No button in dialog"
-    },
-    "yesButton": "Yes",
-    "@yesButton":{
-        "description": "Yes button in dialog"
-    },
-    "codeNotFound": "CODE NOT FOUND",
-    "@codeNotFound":{
-        "description": "If the entered code is not in database"
-    },
-    "noCodeButton": "No code",
-    "@noCodeButton":{
-        "description": "no code available for user, e.g tester"
-    },
-    "signInName": "Please sign in with your first and last name: \n",
-    "@signInName":{
-        "description": "sign in with first and last name when no code available"
-    },
-    "backButton": "Back",
-    "@backButton":{
-        "description": "back button"
+  },
+
+  "cashGoalReach": "cash goal: reach {cashAmount}",
+  "@cashGoalReach": {
+    "description": "Cash goal that user needs to reach. E.g Cash Goal: reach 75",
+    "placeholders": {"cashAmount": {"type": "String", "example": "cash goal: reach $15.00"}}
+  },
+
+  "languagesTitle": "languages",
+  "@languagesTitle": {"description": "Title in Language setting"},
+
+  "sameUser": "If you are {firstName}, simply start the game.",
+  "@sameUser": {
+    "description:": "asks if the user is the same that logs back in",
+    "placeholders": {"firstName": {"type": "String", "example": "John"}}
+  },
+
+  "startAtLevel": "start at level {level}",
+  "@startAtLevel": {
+    "description": "At which level the user can start the game",
+    "placeholders": {"level": {"type": "String", "example": "5"}}
+  },
+
+  "welcomeBack": "Welcome back, {firstName} {lastName}!",
+  "@welcomeBack": {
+    "description": "Welcomes back user e.g Welcome back, John Doe",
+    "placeholders": {
+      "firstName": {"type": "String", "example": "John"},
+      "lastName": {"type": "String", "example": "Doe"}
     }
+  },
+
+  "cashValue": "{value}",
+  "@cashValue": {
+    "description": "How cash values are displayed in App",
+    "placeholders": {"value": {"type": "String", "example": "$15.00"}}
+  },
+
+  "selectLanguage": "Please select language:",
+  "@selectLanguage": {"description": "Dialog when asking user about language"},
+
+  "hintUID": "e.g. UGRT999",
+  "@hintUID": {"description": "Hint text for user to enter their UID, for example XH5YT"},
+
+  "confirmNameTitle": "Confirm your name",
+  "@confirmNameTitle": {"description": "Ask user to confirm their name"},
+
+  "confirmName": "Are you {firstName} {lastName}?",
+  "@confirmName": {
+    "description": "Display User name to confirm",
+    "placeholders": {
+      "firstName": {"type": "String", "example": "John"},
+      "lastName": {"type": "String", "example": "Doe"}
+    }
+  },
+
+  "noButton": "No",
+  "@noButton": {"description": "No button in dialog"},
+
+  "yesButton": "Yes",
+  "@yesButton": {"description": "Yes button in dialog"},
+
+  "codeNotFound": "CODE NOT FOUND",
+  "@codeNotFound": {"description": "If the entered code is not in database"},
+
+  "noCodeButton": "No code",
+  "@noCodeButton": {"description": "no code available for user, e.g tester"},
+
+  "signInName": "Please sign in with your first and last name: \\n",
+  "@signInName": {"description": "sign in with first and last name when no code available"},
+
+  "backButton": "Back",
+  "@backButton": {"description": "back button"}
 }

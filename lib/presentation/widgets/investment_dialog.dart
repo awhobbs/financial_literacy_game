@@ -1,8 +1,9 @@
+// lib/presentation/widgets/investment_dialog.dart
 import 'dart:math';
 
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:financial_literacy_game/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config/color_palette.dart';
@@ -14,6 +15,7 @@ import '../../domain/entities/assets.dart';
 import '../../domain/entities/levels.dart';
 import '../../domain/game_data_notifier.dart';
 import '../../domain/utils/utils.dart';
+import '../../domain/utils/intl_fallback.dart'; // <- formatter
 import 'asset_carousel.dart';
 import 'cash_alert_dialog.dart';
 import 'lost_game_dialog.dart';
@@ -77,17 +79,17 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
   @override
   void initState() {
     Level defaultLevel =
-        levels[widget.ref.read(gameDataNotifierProvider).levelId];
+    levels[widget.ref.read(gameDataNotifierProvider).levelId];
     currentLevel = defaultLevel.copyWith(
       loan: defaultLevel.loanInterestRandomized
           ? getRandomLoan()
           : defaultLevel.loan,
       savingsRate: defaultLevel.savingsInterestRandomized
           ? getRandomDouble(
-              start: minimumSavingsRate,
-              end: maximumSavingsRate,
-              steps: stepsSavingsRate,
-            )
+        start: minimumSavingsRate,
+        end: maximumSavingsRate,
+        steps: stepsSavingsRate,
+      )
           : defaultLevel.savingsRate,
     );
     if (currentLevel.assetTypeRandomized) {
@@ -141,7 +143,6 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
     levelAssets = currentLevel.assets;
     levelLoan = currentLevel.loan;
 
-    //widget.ref.read(gameDataNotifierProvider.notifier).setCashInterest(currentLevel.savingsRate);
     super.initState();
   }
 
@@ -153,6 +154,7 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
 
   @override
   Widget build(BuildContext context) {
+    final localeCode = Localizations.localeOf(context).toString();
     Asset selectedAsset = levelAssets[_selectedIndex];
 
     Future<bool> showNotEnoughCash() async {
@@ -174,7 +176,7 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
               content: asset.numberOfAnimals > 1
                   ? Text(AppLocalizations.of(context)!.assetsDied.capitalize())
                   : Text(
-                      AppLocalizations.of(context)!.assetDied(asset.type.name)),
+                  AppLocalizations.of(context)!.assetDied(asset.type.name)),
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context, true),
@@ -185,18 +187,18 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
           });
     }
 
+    final convertedCurrentCash = widget.ref
+        .read(gameDataNotifierProvider.notifier)
+        .convertAmount(widget.ref.read(gameDataNotifierProvider).cash);
+
+    final currentCashString =
+    formatAmount(convertedCurrentCash, localeCode, currency: 'UGX');
+
     return Center(
       child: SingleChildScrollView(
         child: AlertDialog(
           backgroundColor: ColorPalette().popUpBackground,
           insetPadding: EdgeInsets.zero,
-          // title: Text(
-          //   AppLocalizations.of(context)!.investmentOptions,
-          //   style: const TextStyle(
-          //     fontSize: 20.0,
-          //     fontWeight: FontWeight.bold,
-          //   ),
-          // ),
           content: SizedBox(
             width: min(MediaQuery.of(context).size.width, 400),
             child: Column(
@@ -204,13 +206,12 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 AutoSizeText(
-                  AppLocalizations.of(context)!.currentCash(widget.ref
-                      .read(gameDataNotifierProvider.notifier)
-                      .convertAmount(
-                          widget.ref.read(gameDataNotifierProvider).cash)),
+                  AppLocalizations.of(context)!.currentCash(currentCashString),
                   maxLines: 2,
                   style: const TextStyle(
-                      fontSize: 25, fontWeight: FontWeight.bold),
+                    fontSize: 25,
+                    fontWeight: FontWeight.bold,
+                  ),
                   group: textGroup,
                 ),
                 const SizedBox(height: 5),
@@ -223,20 +224,12 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
                   ),
                 ),
                 const SizedBox(height: 5),
-                // AutoSizeText(
-                //   AppLocalizations.of(context)!.tip.capitalize(),
-                //   maxLines: 1,
-                //   style: const TextStyle(
-                //     fontSize: 20,
-                //     fontWeight: FontWeight.bold,
-                //   ),
-                //   group: textGroup,
-                // ),
+
                 if (currentLevel.showLoanBorrowOption)
                   AutoSizeText(
                     AppLocalizations.of(context)!
                         .borrowAt((levelLoan.interestRate * 100)
-                            .toStringAsFixed(decimalValuesToDisplay))
+                        .toStringAsFixed(decimalValuesToDisplay))
                         .capitalize(),
                     maxLines: 2,
                     style: const TextStyle(
@@ -245,6 +238,7 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
                     ),
                     group: textGroup,
                   ),
+
                 if (currentLevel.savingsRate != 0 ||
                     currentLevel.savingsInterestRandomized)
                   AutoSizeText(
@@ -258,6 +252,7 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
                     ),
                     group: textGroup,
                   ),
+
                 if (currentLevel.savingsRate == 0 &&
                     currentLevel.showCashBuyOption &&
                     (widget.ref.read(gameDataNotifierProvider).levelId == 0 ||
@@ -278,6 +273,7 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
                     ),
                     group: textGroup,
                   ),
+
                 if (currentLevel.savingsRate == 0 &&
                     currentLevel.showLoanBorrowOption &&
                     widget.ref.read(gameDataNotifierProvider).period < 4)
@@ -297,6 +293,7 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
                     ),
                     group: textGroup,
                   ),
+
                 if (currentLevel.savingsRate == 0 &&
                     currentLevel.showLoanBorrowOption &&
                     widget.ref.read(gameDataNotifierProvider).period >= 4)
@@ -329,10 +326,10 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
               ),
               onPressed: () {
                 widget.ref.read(gameDataNotifierProvider.notifier).advance(
-                      newCashInterest: currentLevel.savingsRate,
-                      buyDecision: BuyDecision.dontBuy,
-                      selectedAsset: selectedAsset,
-                    );
+                  newCashInterest: currentLevel.savingsRate,
+                  buyDecision: BuyDecision.dontBuy,
+                  selectedAsset: selectedAsset,
+                );
                 Navigator.pop(context);
                 checkBankruptcy(widget.ref, context);
                 checkGameHasEnded(widget.ref, context);
@@ -342,52 +339,54 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
             ),
             if (currentLevel.showCashBuyOption)
               ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    elevation: 8.0,
-                    foregroundColor: ColorPalette().lightText,
-                    backgroundColor: ColorPalette().buttonBackground,
-                    textStyle: const TextStyle(fontSize: 13.0),
-                  ),
-                  onPressed: () async {
-                    if (await widget.ref
-                            .read(gameDataNotifierProvider.notifier)
-                            .buyAsset(
-                              selectedAsset,
-                              showNotEnoughCash,
-                              showAnimalDiedWarning,
-                              currentLevel.savingsRate,
-                            ) ==
-                        true) {
-                      if (context.mounted) {
-                        Navigator.pop(context);
-                        checkBankruptcy(widget.ref, context);
-                        checkGameHasEnded(widget.ref, context);
-                        checkNextLevelReached(widget.ref, context);
-                      }
-                    }
-                  },
-                  child: Text(AppLocalizations.of(context)!.payCash)),
-            if (currentLevel.showLoanBorrowOption)
-              ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    elevation: 8.0,
-                    foregroundColor: ColorPalette().lightText,
-                    backgroundColor: ColorPalette().buttonBackground,
-                    textStyle: const TextStyle(fontSize: 13.0),
-                  ),
-                  onPressed: () async {
-                    await widget.ref
-                        .read(gameDataNotifierProvider.notifier)
-                        .loanAsset(levelLoan, selectedAsset,
-                            showAnimalDiedWarning, currentLevel.savingsRate);
+                style: ElevatedButton.styleFrom(
+                  elevation: 8.0,
+                  foregroundColor: ColorPalette().lightText,
+                  backgroundColor: ColorPalette().buttonBackground,
+                  textStyle: const TextStyle(fontSize: 13.0),
+                ),
+                onPressed: () async {
+                  if (await widget.ref
+                      .read(gameDataNotifierProvider.notifier)
+                      .buyAsset(
+                    selectedAsset,
+                    showNotEnoughCash,
+                    showAnimalDiedWarning,
+                    currentLevel.savingsRate,
+                  ) ==
+                      true) {
                     if (context.mounted) {
                       Navigator.pop(context);
                       checkBankruptcy(widget.ref, context);
                       checkGameHasEnded(widget.ref, context);
                       checkNextLevelReached(widget.ref, context);
                     }
-                  },
-                  child: Text(AppLocalizations.of(context)!.borrow)),
+                  }
+                },
+                child: Text(AppLocalizations.of(context)!.payCash),
+              ),
+            if (currentLevel.showLoanBorrowOption)
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  elevation: 8.0,
+                  foregroundColor: ColorPalette().lightText,
+                  backgroundColor: ColorPalette().buttonBackground,
+                  textStyle: const TextStyle(fontSize: 13.0),
+                ),
+                onPressed: () async {
+                  await widget.ref
+                      .read(gameDataNotifierProvider.notifier)
+                      .loanAsset(levelLoan, selectedAsset, showAnimalDiedWarning,
+                      currentLevel.savingsRate);
+                  if (context.mounted) {
+                    Navigator.pop(context);
+                    checkBankruptcy(widget.ref, context);
+                    checkGameHasEnded(widget.ref, context);
+                    checkNextLevelReached(widget.ref, context);
+                  }
+                },
+                child: Text(AppLocalizations.of(context)!.borrow),
+              ),
           ],
         ),
       ),

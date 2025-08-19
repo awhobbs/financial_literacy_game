@@ -3,7 +3,7 @@
     "project_number": "310545133265",
     "firebase_url": "https://finlitsim-default-rtdb.firebaseio.com",
     "project_id": "finlitsim",
-    "storage_bucket": "finlitsim.appspot.com"
+    "storage_bucket": "finlitsim.firebasestorage.app"
   },
   "client": [
     {

@@ -1,0 +1,95 @@
+{
+  "@@locale": "ach",
+
+  "assetDied": "{asset} lim otoo",
+  "assets": "lim ma tye",
+  "assetsDied": "lim ma otoo",
+
+  "borrow": "den",
+  "borrowAt": "den i {interestRate}% odoco",
+
+  "cashAlert": "cente mamegi pe tye kakare",
+  "cashGoal": "cente ma imito ni",
+  "cashGoalReach": "cente ma imito ni: Tye {cashAmount}",
+  "currentCash": "cente mamegi: {cashAmount}",
+
+  "chicken": "Gweno",
+  "cow": "Dyang",
+  "goat": "Dyel",
+
+  "clearCache": "ruc cak me memory",
+  "confirm": "moko",
+  "congratulations": "Wapwoyo matek",
+  "continueButton": "Mede",
+
+  "dontBuy": "Pe i wil",
+  "enterName": "Ket nyinge mada ma megi kacel ki ma aryo",
+  "error": "Bal",
+  "expenses": "cente ma ityo kwede",
+
+  "gameFinished": "tuku otum",
+
+  "hintFirstName": "Nyinge mada ma megi kacel",
+  "hintLastName": "Nyinge mada ma megi aryo",
+
+  "howToPlay": "Kit ma ki tuku kwede",
+  "income": "cente ma icwalo",
+  "incomePerYear": "cente ma icwalo: {cashAmount} / mwaka",
+
+  "instructionText1": "1. Me cako kwede, dong i button ma ki coo ni “EKIDDAKO” i wiye i anyim",
+  "instructionText2": "2. Iromo kwero jami me iyie i centr mamegi, onyo den, onyo pe iromo mede",
+  "instructionText3": "3. I cawa ducu, jami mamegi romo bedo goro, cente mamegi romo bedo mang mang",
+  "instructionText4": "4. Namba ma tye i piny pi jami mito ni tye me konyo",
+  "instructionText5": "5. Imito ni cente mamegi tye kakare me romo mede i level mukene",
+  "instructionText6": "6. Iromo nong kit matye me kwede game man me iromo peko ni",
+
+  "interestCash": "magona ma iwii i cente mamegi tye {interestRate}% / mwaka",
+  "investmentOptions": "Jami ma iromo timo",
+
+  "language": "Acholi - UGX",
+  "languagesTitle": "Leb",
+
+  "level": "Level {level} / {levelTotal}",
+  "lifeExpectancy": "Tye kwede: mwaka {yearsNum}",
+  "lifeRisk": "romo tye: 1 i {number} bi tye kwede",
+
+  "loan": "{count, plural, =1{Loan} other{Loans}}",
+  "lostGame": "Bal, cente mamegi orem. Iromo dwoko level man onyo cako game mukene.",
+
+  "next": "mukene",
+  "nextLevel": "Level mekene",
+  "notMe": "Man pe an",
+
+  "overview": "Neno weng",
+  "payCash": "cul ma kom cente",
+  "personal": "Mamegi",
+  "price": "wele: {cashAmount}",
+
+  "reachedNextLevel": "I dong i level mukene",
+  "restart": "Cak doki",
+  "restartGame": "Cak game mukene",
+  "restartLevel": "Dwoko level man",
+
+  "sameUser": "Ka nyinye {firstName}, cako game",
+  "settings": "Tee",
+  "signInDifferentPerson": "loko cente mamegi",
+  "startAtLevel": "Cako i level {level}",
+  "tip": "wiye",
+
+  "titleSignIn": "Dony i tuku game ma ki nyinge FinSim",
+  "warning": "Koko",
+
+  "welcomeBack": "Apwoyo matek, {firstName} {lastName}!",
+  "welcomeText": "Apwoyo, game man tye me konyo i ngec me cente. Pe iromo loko ngec me bank mamegi. Ket wiye wiye me ngec mamegi piny.",
+
+  "selectLanguage": "Yer lok ma imito:",
+  "hintUID": "namba me user. cal, UGRT999",
+  "confirmNameTitle": "mok nyinge mada ma megi",
+  "confirmName": "mok Nyinge {firstName} {lastName}?",
+  "noButton": "ku",
+  "yesButton": "Eeyo",
+  "codeNotFound": "Code pe tye",
+  "noCodeButton": "Pe tye code",
+  "signInName": "Ket nyinge mada ma megi kacel ki aryo:",
+  "backButton": "Dok cen"
+}

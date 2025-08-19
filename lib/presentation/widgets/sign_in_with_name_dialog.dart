@@ -1,7 +1,7 @@
 import 'package:financial_literacy_game/presentation/widgets/sign_in_dialog_with_code.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:financial_literacy_game/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config/color_palette.dart';

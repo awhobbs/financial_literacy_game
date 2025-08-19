@@ -2,7 +2,7 @@ import 'dart:math';
 
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:financial_literacy_game/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config/color_palette.dart';
@@ -31,14 +31,28 @@ class Homepage extends ConsumerStatefulWidget {
 class _HomepageState extends ConsumerState<Homepage> {
   @override
   void initState() {
+    super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       // get info from device that has been stored previously
       await getDeviceInfo();
+      // Determine locale: prefer stored; else show dropdown to choose
+      final storedLocale = await loadLocaleFromLocal();
+      if (storedLocale == null) {
+        if (context.mounted) {
+          await showDialog(
+            barrierDismissible: false,
+            context: context,
+            builder: (context) => LanguageSelectionDialog(
+              title: AppLocalizations.of(context)!.languagesTitle,
+            ),
+          );
+        }
+      }
+      // After dialog or if already stored, load the best locale and set it
+      final chosen = await L10n.getSystemLocale();
+      ref.read(gameDataNotifierProvider.notifier).setLocale(chosen);
       bool personLoaded = await loadPerson(ref: ref);
-      // get locale from system settings
-      Locale locale = await L10n.getSystemLocale();
-      ref.read(gameDataNotifierProvider.notifier).setLocale(locale);
-      // if the person has been stored from previous game sessions
+// if the person has been stored from previous game sessions
       if (personLoaded) {
         // loading last level the user played
         bool levelLoaded = await loadLevelIDFromLocal(ref: ref);

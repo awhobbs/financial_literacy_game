@@ -1,6 +1,6 @@
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:financial_literacy_game/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '/domain/utils/utils.dart';
@@ -97,7 +97,7 @@ class OverviewTileContent extends ConsumerWidget {
           child: Align(
             alignment: Alignment.bottomRight,
             child: AutoSizeText(
-              AppLocalizations.of(context)!.cashValue(value),
+              AppLocalizations.of(context)!.cashValue(value.toStringAsFixed(2)),
               maxLines: 1,
               group: group,
               style: TextStyle(

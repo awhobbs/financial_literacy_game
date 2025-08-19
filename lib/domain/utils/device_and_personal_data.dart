@@ -1,3 +1,4 @@
+
 import 'dart:ui';
 
 import 'package:device_info_plus/device_info_plus.dart';
@@ -13,37 +14,48 @@ Future<void> getDeviceInfo() async {
   if (kIsWeb) {
     WebBrowserInfo webBrowserInfo = await deviceInfo.webBrowserInfo;
     debugPrint('Running on ${webBrowserInfo.userAgent}');
+  } else {
+    try {
+      final android = await deviceInfo.androidInfo;
+      debugPrint('Running on Android ${android.model}');
+    } catch (_) {
+      try {
+        final ios = await deviceInfo.iosInfo;
+        debugPrint('Running on iOS ${ios.utsname.machine}');
+      } catch (_) {
+        // ignore
+      }
+    }
   }
+}
+
+Future<void> savePersonLocally(Person person) async {
+  final prefs = await SharedPreferences.getInstance();
+  if (person.firstName != null) prefs.setString('firstName', person.firstName!);
+  if (person.lastName != null) prefs.setString('lastName', person.lastName!);
+  if (person.uid != null) prefs.setString('uid', person.uid!);
+  if (person.exists()) prefs.setBool('personExists', true);
 }
 
 Future<bool> loadPerson({required WidgetRef ref}) async {
   final prefs = await SharedPreferences.getInstance();
-  String? savedFirstName = prefs.getString('firstName');
-  String? savedLastName = prefs.getString('lastName');
+  final exists = prefs.getBool('personExists') ?? false;
+  if (!exists) return false;
 
-  if (savedFirstName == null || savedLastName == null) return false;
+  final firstName = prefs.getString('firstName');
+  final lastName = prefs.getString('lastName');
+  final uid = prefs.getString('uid');
 
-  debugPrint('Loaded person $savedFirstName $savedLastName from local storage.');
-  Person loadedPerson = Person(firstName: savedFirstName, lastName: savedLastName);
-  ref.read(gameDataNotifierProvider.notifier).setPerson(loadedPerson);
+  if (firstName == null || lastName == null) return false;
+
+  final person = Person(firstName: firstName, lastName: lastName, uid: uid);
+  ref.read(gameDataNotifierProvider.notifier).setPerson(person);
   return true;
-}
-
-void savePersonLocally(Person person) async {
-  debugPrint('Save person ${person.firstName} ${person.lastName} with UID ${person.uid} to local '
-      'storage.');
-  if (person.exists()) {
-    final prefs = await SharedPreferences.getInstance();
-    prefs.setString('firstName', person.firstName!);
-    prefs.setString('lastName', person.lastName!);
-    prefs.setString('uid', person.uid!);
-  }
 }
 
 Future<bool> loadLevelIDFromLocal({required WidgetRef ref}) async {
   final prefs = await SharedPreferences.getInstance();
   int? savedLastPlayedLevelID = prefs.getInt('lastPlayedLevelID');
-
   if (savedLastPlayedLevelID == null) {
     return false;
   } else {
@@ -57,26 +69,26 @@ void saveLevelIDLocally(int levelID) async {
   prefs.setInt('lastPlayedLevelID', levelID);
 }
 
-void saveLocalLocally(Locale locale) async {
+Future<void> saveLocalLocally(Locale locale) async {
   final prefs = await SharedPreferences.getInstance();
-  prefs.setString('languageCode', locale.languageCode);
+  await prefs.setString('languageCode', locale.languageCode);
   if (locale.countryCode != null) {
-    prefs.setString('countryCode', locale.countryCode!);
+    await prefs.setString('countryCode', locale.countryCode!);
+  } else {
+    await prefs.remove('countryCode');
   }
 }
 
 Future<Locale?> loadLocaleFromLocal() async {
   final prefs = await SharedPreferences.getInstance();
-  String? languageCode = prefs.getString('languageCode');
-  String? countryCode = prefs.getString('countryCode');
+  final String? languageCode = prefs.getString('languageCode');
+  final String? countryCode = prefs.getString('countryCode');
 
-  if (languageCode == null || languageCode != 'lg' && countryCode == null) {
+  if (languageCode == null || languageCode.isEmpty) {
     return null;
-  } else {
-    if (countryCode == null) {
-      return Locale(languageCode);
-    } else {
-      return Locale(languageCode, countryCode);
-    }
   }
+  if (countryCode == null || countryCode.isEmpty) {
+    return Locale(languageCode);
+  }
+  return Locale(languageCode, countryCode);
 }

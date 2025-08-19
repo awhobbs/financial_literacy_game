@@ -1,9 +1,11 @@
+// lib/domain/utils/utils.dart
 import 'dart:math';
-
-import 'package:financial_literacy_game/domain/game_data_notifier.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'package:financial_literacy_game/l10n/app_localizations.dart';
+import 'package:financial_literacy_game/domain/game_data_notifier.dart';
+import 'package:financial_literacy_game/domain/utils/intl_fallback.dart';
 
 import '../../config/color_palette.dart';
 import '../../domain/concepts/recorded_data.dart';
@@ -12,24 +14,24 @@ import '../concepts/level.dart';
 import '../concepts/loan.dart';
 
 List<RecordedData> copyRecordedDataArray(List<RecordedData> recordedDataList) {
-  List<RecordedData> copiedRecordedDataList = [];
-  for (RecordedData recordedData in recordedDataList) {
+  final copiedRecordedDataList = <RecordedData>[];
+  for (final recordedData in recordedDataList) {
     copiedRecordedDataList.add(recordedData);
   }
   return copiedRecordedDataList;
 }
 
 List<double> copyCashArray(List<double> cashList) {
-  List<double> copiedCashList = [];
-  for (double cashValue in cashList) {
+  final copiedCashList = <double>[];
+  for (final cashValue in cashList) {
     copiedCashList.add(cashValue);
   }
   return copiedCashList;
 }
 
 List<Asset> copyAssetArray(List<Asset> assetList) {
-  List<Asset> copiedAssetList = [];
-  for (Asset asset in assetList) {
+  final copiedAssetList = <Asset>[];
+  for (final asset in assetList) {
     copiedAssetList.add(asset.copyWith());
   }
   return copiedAssetList;
@@ -37,19 +39,23 @@ List<Asset> copyAssetArray(List<Asset> assetList) {
 
 // helper method to copy a list of loans
 List<Loan> copyLoanArray(List<Loan> loanList) {
-  List<Loan> copiedLoanList = [];
-  for (Loan loan in loanList) {
+  final copiedLoanList = <Loan>[];
+  for (final loan in loanList) {
     copiedLoanList.add(loan.copyWith());
   }
   return copiedLoanList;
 }
 
 // get random double value
-double getRandomDouble(
-    {required double start, required double end, required double steps}) {
-  List<double> randomStepList = List.generate(
-      (end * 100 - start * 100) ~/ (steps * 100) + 1,
-      (index) => start + index * steps);
+double getRandomDouble({
+  required double start,
+  required double end,
+  required double steps,
+}) {
+  final randomStepList = List<double>.generate(
+    (end * 100 - start * 100) ~/ (steps * 100) + 1,
+        (index) => start + index * steps,
+  );
   return randomStepList[Random().nextInt(randomStepList.length)];
 }
 
@@ -59,16 +65,29 @@ String generateCashTipMessage({
   required BuildContext context,
   required WidgetRef ref,
 }) {
-  String tipString = '${AppLocalizations.of(context)!.cash}: ';
-  double profit = asset.income * asset.lifeExpectancy - asset.price;
-  double convertedProfit =
-      ref.read(gameDataNotifierProvider.notifier).convertAmount(profit);
-  String profitString =
-      AppLocalizations.of(context)!.cashValue(convertedProfit);
+  final l10n = AppLocalizations.of(context)!;
+  final localeCode = Localizations.localeOf(context).toString();
+
+  String tipString = '${l10n.cash}: ';
+
+  final profit = asset.income * asset.lifeExpectancy - asset.price;
+  final convertedProfit =
+  ref.read(gameDataNotifierProvider.notifier).convertAmount(profit);
+
+  final convertedIncome =
+  ref.read(gameDataNotifierProvider.notifier).convertAmount(asset.income);
+  final convertedPrice =
+  ref.read(gameDataNotifierProvider.notifier).convertAmount(asset.price);
+
+  final profitString =
+  l10n.cashValue(formatAmount(convertedProfit, localeCode, currency: 'UGX'));
+
   tipString +=
-      '(${AppLocalizations.of(context)!.cashValue(ref.read(gameDataNotifierProvider.notifier).convertAmount(asset.income))} x '
-      '${asset.lifeExpectancy}) - ${AppLocalizations.of(context)!.cashValue(ref.read(gameDataNotifierProvider.notifier).convertAmount(asset.price))} = '
+  '(${l10n.cashValue(formatAmount(convertedIncome, localeCode, currency: 'UGX'))} x '
+      '${asset.lifeExpectancy}) - '
+      '${l10n.cashValue(formatAmount(convertedPrice, localeCode, currency: 'UGX'))} = '
       '$profitString';
+
   return tipString;
 }
 
@@ -78,45 +97,74 @@ String generateLoanTipMessage({
   required BuildContext context,
   required WidgetRef ref,
 }) {
-  String tipString = '${AppLocalizations.of(context)!.loan(1)}: ';
-  double profit = asset.income * asset.lifeExpectancy -
+  final l10n = AppLocalizations.of(context)!;
+  final localeCode = Localizations.localeOf(context).toString();
+
+  String tipString = '${l10n.loan(1)}: ';
+
+  final profit = asset.income * asset.lifeExpectancy -
       asset.price * (1 + level.loan.interestRate);
-  double convertedProfit =
-      ref.read(gameDataNotifierProvider.notifier).convertAmount(profit);
-  String profitString =
-      AppLocalizations.of(context)!.cashValue(convertedProfit);
+  final convertedProfit =
+  ref.read(gameDataNotifierProvider.notifier).convertAmount(profit);
+
+  final convertedIncome =
+  ref.read(gameDataNotifierProvider.notifier).convertAmount(asset.income);
+  final convertedPrice =
+  ref.read(gameDataNotifierProvider.notifier).convertAmount(asset.price);
+
+  final priceTimesRate = convertedPrice * (1 + level.loan.interestRate);
+
+  final profitString =
+  l10n.cashValue(formatAmount(convertedProfit, localeCode, currency: 'UGX'));
+
   tipString +=
-      '(${AppLocalizations.of(context)!.cashValue(ref.read(gameDataNotifierProvider.notifier).convertAmount(asset.income))} x ${asset.lifeExpectancy}) - (${AppLocalizations.of(context)!.cashValue(ref.read(gameDataNotifierProvider.notifier).convertAmount(asset.price))} x ${1 + level.loan.interestRate}) = '
+  '(${l10n.cashValue(formatAmount(convertedIncome, localeCode, currency: 'UGX'))} x ${asset.lifeExpectancy}) - '
+      '(${l10n.cashValue(formatAmount(priceTimesRate, localeCode, currency: 'UGX'))}) = '
       '$profitString';
+
   return tipString;
 }
+
 String generateInterestAmountTipMessage({
   required Asset asset,
   required Level level,
   required BuildContext context,
   required WidgetRef ref,
 }) {
-  String tipString = '${AppLocalizations.of(context)!.interestAmount}: ';
-  double interest =   asset.price * (level.loan.interestRate);
-  double convertedInterest =
-      ref.read(gameDataNotifierProvider.notifier).convertAmount(interest);
-  String interestString =
-      AppLocalizations.of(context)!.cashValue(convertedInterest);
+  final l10n = AppLocalizations.of(context)!;
+  final localeCode = Localizations.localeOf(context).toString();
+
+  String tipString = '${l10n.interestCash}: ';
+
+  final interest = asset.price * (level.loan.interestRate);
+  final convertedInterest =
+  ref.read(gameDataNotifierProvider.notifier).convertAmount(interest);
+  final convertedPrice =
+  ref.read(gameDataNotifierProvider.notifier).convertAmount(asset.price);
+
+  final interestString = l10n.cashValue(
+    formatAmount(convertedInterest, localeCode, currency: 'UGX'),
+  );
+
   tipString +=
-      '(${AppLocalizations.of(context)!.cashValue(ref.read(gameDataNotifierProvider.notifier).convertAmount(asset.price))} x ${level.loan.interestRate}) = '
+  '(${l10n.cashValue(formatAmount(convertedPrice * level.loan.interestRate, localeCode, currency: 'UGX'))}) = '
       '$interestString';
+
   return tipString;
 }
 
 // extension to allow capitalization of first letter in strings
 extension StringExtension on String {
   String capitalize() {
+    if (isEmpty) return this;
     return "${this[0].toUpperCase()}${substring(1).toLowerCase()}";
   }
 }
 
-void showErrorSnackBar(
-    {required BuildContext context, required String errorMessage}) {
+void showErrorSnackBar({
+  required BuildContext context,
+  required String errorMessage,
+}) {
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       duration: const Duration(seconds: 2),

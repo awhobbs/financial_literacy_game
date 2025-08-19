@@ -1,6 +1,6 @@
 import 'package:auto_size_text/auto_size_text.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_gen/gen_l10n/app_localizations.dart';
+import 'package:financial_literacy_game/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../config/color_palette.dart';
@@ -178,7 +178,7 @@ class SmallAssetCard extends ConsumerWidget {
                     Expanded(
                       flex: 1,
                       child: AutoSizeText(
-                        AppLocalizations.of(context)!.cashValue(income),
+                        AppLocalizations.of(context)!.cashValue(income.toStringAsFixed(2)),
                         textAlign: TextAlign.center,
                         style: TextStyle(
                           color: ColorPalette().lightText,

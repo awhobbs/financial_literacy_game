@@ -1,0 +1,68 @@
+{
+  "ach": [
+    "pig",
+    "enterUID",
+    "cash",
+    "cashValue"
+  ],
+
+  "es": [
+    "enterUID",
+    "cashValue"
+  ],
+
+  "es_GT": [
+    "enterUID",
+    "cashValue"
+  ],
+
+  "es_PE": [
+    "enterUID"
+  ],
+
+  "kn": [
+    "pig",
+    "enterUID",
+    "cashValue"
+  ],
+
+  "lg": [
+    "pig",
+    "enterUID",
+    "cashValue"
+  ],
+
+  "nyn": [
+    "continueButton",
+    "assets",
+    "pig",
+    "chicken",
+    "error",
+    "cashAlert",
+    "confirm",
+    "instructionText1",
+    "instructionText2",
+    "instructionText3",
+    "instructionText4",
+    "investmentOptions",
+    "dontBuy",
+    "borrow",
+    "clearCache",
+    "enterUID",
+    "enterName",
+    "congratulations",
+    "cash",
+    "expenses",
+    "gameFinished",
+    "lifeExpectancy",
+    "lifeRisk",
+    "cashGoal",
+    "assetDied",
+    "assetsDied",
+    "currentCash",
+    "borrowAt",
+    "level",
+    "cashGoalReach",
+    "cashValue"
+  ]
+}

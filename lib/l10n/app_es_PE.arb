@@ -72,5 +72,6 @@
   "codeNotFound": "Código no encontrado",
   "noCodeButton": "Sin código",
   "signInName": "Inicie sesión con su nombre y apellido: \n",
-  "backButton": "Atrás"
+  "backButton": "Atrás",
+  "@@locale": "es_PE"
 }

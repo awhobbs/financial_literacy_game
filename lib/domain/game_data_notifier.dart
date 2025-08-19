@@ -1,3 +1,4 @@
+import 'package:intl/intl.dart';
 import 'dart:math';
 
 import 'package:confetti/confetti.dart';
@@ -5,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../config/constants.dart';
+import '../l10n/intl_fallback.dart';
 import '../l10n/l10n.dart';
 import 'concepts/asset.dart';
 import 'concepts/game_data.dart';
@@ -57,7 +59,10 @@ class GameDataNotifier extends StateNotifier<GameData> {
   // setting new locale (language and format)
   void setLocale(Locale newLocale) {
     if (L10n.all.contains(newLocale)) {
-      state = state.copyWith(locale: newLocale);
+      
+    // Keep intl safe for unsupported locales
+    Intl.defaultLocale = intlLocaleFor(newLocale);
+state = state.copyWith(locale: newLocale);
       debugPrint('New locale set to $newLocale');
     } else {
       debugPrint('Locale $newLocale not supported');

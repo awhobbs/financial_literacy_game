@@ -44,3 +44,4 @@ Contributions to this project are welcome. If you encounter any issues or have s
 
 ## License
 This project is licensed under the MIT License. Feel free to modify and distribute the app in accordance with the terms of the license.
+# FinancialLiteracyGame
