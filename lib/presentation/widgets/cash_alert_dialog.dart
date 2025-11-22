@@ -1,0 +1,24 @@
+import 'package:financial_literacy_game/domain/utils/utils.dart';
+import 'package:flutter/material.dart';
+import 'package:financial_literacy_game/l10n/app_localizations.dart';
+
+class CashAlertDialog extends StatelessWidget {
+  const CashAlertDialog({
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      // Dialog will be displayed when user does not have enough cash
+      title: Text(AppLocalizations.of(context)!.error.capitalize()),
+      content: Text(AppLocalizations.of(context)!.cashAlert.capitalize()),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context, true),
+          child: Text(AppLocalizations.of(context)!.confirm),
+        )
+      ],
+    );
+  }
+}
