@@ -1,114 +1,73 @@
-import os
 import csv
 import firebase_admin
 from firebase_admin import credentials, firestore, initialize_app
-import keyboard
+from datetime import datetime
 
-
-# connect to firebase via service account
+# ----------------------------------------------------
+# 1. Firebase setup
+# ----------------------------------------------------
 cred = credentials.Certificate('firebase_admin.json')
 app = initialize_app(cred)
 db = firestore.client()
 
+# ----------------------------------------------------
+# 2. Load the combined CSV file
+# ----------------------------------------------------
+CSV_FILE = "Uganda_Pilot_All_Regions.csv"
 
+print(f"Loading data from: {CSV_FILE}")
 
-# find all csv files in current directory
-for file in os.listdir(os.getcwd()):
-	if file.endswith(".csv"):
-		# get file name without extension
-		fileName = os.path.splitext(file)[0]
+uids_by_region = {}
+enumerators_by_region = {}
 
-		# open csv file
-		with open(file) as csv_file:
-			csv_reader = csv.reader(csv_file, delimiter=',')
-			csv_list = list(csv_reader)
-			# check if headers are in correct order
-			header = csv_list[0]
-			if 'uid' not in header[0]:
-				print('"uid" not found in first column of header')
-				quit()
-			if 'firstName' not in header[1]:
-				print('"firstName" not found in second column of header')
-				quit()
-			if 'lastName' not in header[2]:
-				print('"lastName" not found in third column of header')
-				quit()
-			uid_listCSV = csv_list[1:]
+with open(CSV_FILE) as csv_file:
+    csv_reader = csv.DictReader(csv_file)
 
+    for row in csv_reader:
+        uid = row["uid"].strip()
+        first_name = row["First_name"] if row["First_name"] else ""
+        last_name = row["Last_name"] if row["Last_name"] else ""
+        enumerator = row["Enumerator"].strip() if row["Enumerator"] else ""
+        region = row["Region"].strip()
 
-			uidListsCollection = db.collection(u'uidLists')
+        # Initialize region if not seen yet
+        if region not in uids_by_region:
+            uids_by_region[region] = []
+            enumerators_by_region[region] = set()
 
-			# TODO: WHAT IF NAME IS NOT FOUND?!
-			locationDoc = uidListsCollection.document(fileName).get()
-			# create document if it does not exist yet
-			if not locationDoc.exists:
-				uidListsCollection.document(fileName).set({
-					'uids': []
-					})
-				locationDoc = uidListsCollection.document(fileName).get()
+        # Add UID entry
+        uids_by_region[region].append({
+            "uid": uid,
+            "firstName": first_name,
+            "lastName": last_name,
+            "usageLog": []  # <-- NEW field for logs
+        })
 
-			uidListFirestore = locationDoc.to_dict().get("uids")
+        # Add enumerator (unique)
+        if enumerator:
+            enumerators_by_region[region].add(enumerator)
 
-			sameUIDs = 0
-			newUIDs = 0
+# ----------------------------------------------------
+# 3. Upload to Firestore per region
+# ----------------------------------------------------
+uidLists = db.collection("uidLists")
 
-			# create uid only list from firestore list
-			uidsOnlyFirestore = []
-			for entryFirestore in uidListFirestore:
-				uidsOnlyFirestore.append(entryFirestore['uid'])
+print("\nUploading to Firestore...\n")
 
-			# create uid only list from csv list
-			uidsOnlyCSV = []
-			for entryCSV in uid_listCSV:
-				uidsOnlyCSV.append(entryCSV[0])
+for region in uids_by_region.keys():
 
-			# check for uids that are not present anymore in new csv
-			missingUIDs = []
-			for uidFirestore in uidsOnlyFirestore:
-				if uidFirestore not in uidsOnlyCSV:
-					missingUIDs.append(uidFirestore)
+    print(f"Updating region: {region}")
+    print(f"UID count: {len(uids_by_region[region])}")
+    print(f"Enumerators: {list(enumerators_by_region[region])}")
 
-			# check for new uids that are not present in firestore
-			newUIDs = []
-			for uidCSV in uidsOnlyCSV:
-				if uidCSV not in uidsOnlyFirestore:
-					newUIDs.append(uidCSV)
-			print('---------------')
-			print('Updating', fileName)
-			print('')
-			print(len(missingUIDs), 'missing UIDs:')
-			for missingUID in missingUIDs:
-				print(missingUID)
-			print('')
-			print(len(newUIDs), 'new UIDs:')
-			for newUID in newUIDs:
-				print(newUID)
-			print('')
+    doc_ref = uidLists.document(region)
 
-			print('CONTINUE? y/n')
+    # Upload structure
+    doc_ref.set({
+        "uids": uids_by_region[region],
+        "enumerators": list(enumerators_by_region[region])
+    })
 
-			while True:
-				print(keyboard.read_key())
-				if keyboard.read_key() == "y":
-					break
-				if keyboard.read_key() == "n":
-					quit()
+    print(f"✔ Uploaded {region}\n")
 
-			print('UPDATING DATA...')
-
-			newFirestoreList = []
-			for entryCSV in uid_listCSV:
-				mapEntry = {
-					'uid': entryCSV[0],
-					'firstName': entryCSV[1],
-					'lastName' : entryCSV[2],
-				}
-				newFirestoreList.append(mapEntry)
-
-			uidListsCollection.document(fileName).update({
-				'uids' : newFirestoreList
-				})
-
-
-
-
+print("🔥 All regions updated successfully!")
