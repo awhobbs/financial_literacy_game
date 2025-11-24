@@ -7,7 +7,7 @@ import '../concepts/person.dart';
 
 FirebaseFirestore db = FirebaseFirestore.instance;
 // store the Firestore collection of users
-CollectionReference userCollectionRef = db.collection('users');
+CollectionReference userCollectionRef = db.collection('usersug');
 // store the Firestore collection of uid user list
 CollectionReference uidListsCollectionRef = db.collection('uidLists');
 
