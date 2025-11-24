@@ -47,3 +47,4 @@ flutter:
   
   assets:
     - assets/images/
+    - assets/data/Uganda_Pilot_All_Regions.csv
