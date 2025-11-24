@@ -1,85 +1,103 @@
-import 'package:financial_literacy_game/presentation/widgets/sign_in_dialog_with_code.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:financial_literacy_game/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:financial_literacy_game/l10n/app_localizations.dart';
 import '../../config/color_palette.dart';
+
 import '../../domain/concepts/person.dart';
 import '../../domain/game_data_notifier.dart';
 import '../../domain/utils/database.dart';
-import '../../domain/utils/device_and_personal_data.dart';
 import '../../domain/utils/utils.dart';
+
+import '../../offline/offline_storage.dart';
+import '../../offline/offline_sync.dart';
+
 import 'menu_dialog.dart';
+import 'sign_in_dialog_with_code.dart';
 
 class SignInWithNameDialog extends ConsumerStatefulWidget {
-  const SignInWithNameDialog({Key? key}) : super(key: key);
+  const SignInWithNameDialog({super.key});
 
   @override
   ConsumerState<SignInWithNameDialog> createState() =>
       _SignInWithNameDialogState();
 }
 
-class _SignInWithNameDialogState extends ConsumerState<SignInWithNameDialog> {
-  late TextEditingController firstNameTextController;
-  late TextEditingController lastNameTextController;
+class _SignInWithNameDialogState
+    extends ConsumerState<SignInWithNameDialog> {
+  late TextEditingController firstNameController;
+  late TextEditingController lastNameController;
+
   bool isProcessing = false;
-
-  Future<bool> setPersonData(Person enteredPerson) async {
-    // show error message when text field left blank
-    if (enteredPerson.firstName == '' || enteredPerson.lastName == '') {
-      showErrorSnackBar(
-        context: context,
-        errorMessage: AppLocalizations.of(context)!.enterName.capitalize(),
-      );
-      return false;
-    }
-
-    // remove whitespaces from text fields
-    String trimmedFirstName = enteredPerson.firstName!.trim();
-    String trimmedLastName = enteredPerson.lastName!.trim();
-
-    // remove leading or trailing dashes ("-")
-    String cleanedFirstName = removeTrailing("-", trimmedFirstName);
-    cleanedFirstName = removeLeading("-", cleanedFirstName);
-    String cleanedLastName = removeTrailing("-", trimmedLastName);
-    cleanedLastName = removeLeading("-", cleanedLastName);
-
-    // Capitalize first letter and lower case all other letters
-    cleanedFirstName =
-        "${cleanedFirstName[0].toUpperCase()}${cleanedFirstName.substring(1).toLowerCase()}";
-    cleanedLastName =
-        "${cleanedLastName[0].toUpperCase()}${cleanedLastName.substring(1).toLowerCase()}";
-
-    // create cleaned person
-    Person cleanedPerson = Person(
-      firstName: cleanedFirstName,
-      lastName: cleanedLastName,
-      uid: enteredPerson.uid,
-    );
-
-    // set the new person in the game data as current player
-    ref.read(gameDataNotifierProvider.notifier).setPerson(cleanedPerson);
-    savePersonLocally(cleanedPerson);
-    await saveUserInFirestore(cleanedPerson);
-    // reset game when new user starts playing
-    ref.read(gameDataNotifierProvider.notifier).resetGame();
-
-    return true;
-  }
 
   @override
   void initState() {
     super.initState();
-    firstNameTextController = TextEditingController();
-    lastNameTextController = TextEditingController();
+    firstNameController = TextEditingController();
+    lastNameController = TextEditingController();
   }
 
   @override
   void dispose() {
+    firstNameController.dispose();
+    lastNameController.dispose();
     super.dispose();
-    firstNameTextController.dispose();
-    lastNameTextController.dispose();
+  }
+
+  // -----------------------------------------------------------
+  // LOGIN FLOW (Name-only)
+  // -----------------------------------------------------------
+  Future<void> handleNameLogin(Person person) async {
+    // 1. Clear saved simple state
+    await OfflineStorage.clearSimpleState();
+
+    // 2. Clear SharedPreferences (old UID, flags, etc.)
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+
+    // 3. Reset entire game state
+    ref.read(gameDataNotifierProvider.notifier).resetGame();
+
+    // 4. Save person to Firestore
+    await saveUserInFirestore(person);
+
+    // 5. Attempt sync using their name-based UID
+    await OfflineSync.sync(person.uid ?? "NAMELOGIN");
+  }
+
+  // -----------------------------------------------------------
+  // CLEAN AND VALIDATE NAME
+  // -----------------------------------------------------------
+  Future<bool> setPersonData() async {
+    String first = firstNameController.text.trim();
+    String last = lastNameController.text.trim();
+
+    if (first.isEmpty || last.isEmpty) {
+      showErrorSnackBar(
+        context: context,
+        errorMessage:
+        AppLocalizations.of(context)!.enterName.capitalize(),
+      );
+      return false;
+    }
+
+    // Clean names
+    first = removeLeading("-", removeTrailing("-", first));
+    last = removeLeading("-", removeTrailing("-", last));
+
+    first = "${first[0].toUpperCase()}${first.substring(1).toLowerCase()}";
+    last = "${last[0].toUpperCase()}${last.substring(1).toLowerCase()}";
+
+    Person person = Person(
+      firstName: first,
+      lastName: last,
+      uid: "NAMELOGIN", // dummy UID for name-only login
+    );
+
+    await handleNameLogin(person);
+    return true;
   }
 
   @override
@@ -92,95 +110,76 @@ class _SignInWithNameDialogState extends ConsumerState<SignInWithNameDialog> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text(AppLocalizations.of(context)!.signInName),
               TextField(
                 enabled: !isProcessing,
-                controller: firstNameTextController,
+                controller: firstNameController,
                 decoration: InputDecoration(
-                    hintText: AppLocalizations.of(context)!
-                        .hintFirstName
-                        .capitalize()),
+                  hintText:
+                  AppLocalizations.of(context)!.hintFirstName.capitalize(),
+                ),
                 inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp('[^0-9]'))
+                  FilteringTextInputFormatter.allow(RegExp('[a-zA-Z ]')),
                 ],
               ),
               TextField(
                 enabled: !isProcessing,
-                controller: lastNameTextController,
+                controller: lastNameController,
                 decoration: InputDecoration(
-                    hintText: AppLocalizations.of(context)!
-                        .hintLastName
-                        .capitalize()),
+                  hintText:
+                  AppLocalizations.of(context)!.hintLastName.capitalize(),
+                ),
                 inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp('[^0-9]'))
+                  FilteringTextInputFormatter.allow(RegExp('[a-zA-Z ]')),
                 ],
               ),
             ],
           ),
           actions: [
+            // BACK BUTTON → Return to main sign-in dialog
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                elevation: 5.0,
+                elevation: 5,
                 backgroundColor: ColorPalette().buttonBackground,
                 foregroundColor: ColorPalette().lightText,
               ),
               onPressed: () {
-                Navigator.of(context).pop();
+                Navigator.pop(context);
                 showDialog(
                   barrierDismissible: false,
                   context: context,
-                  builder: (context) {
-                    return const SignInDialogNew();
-                  },
+                  builder: (_) => const SignInDialogNew(),
                 );
               },
               child: Text(AppLocalizations.of(context)!.backButton),
             ),
+
+            // CONTINUE (Submit)
             ElevatedButton(
               style: ElevatedButton.styleFrom(
-                elevation: 5.0,
+                elevation: 5,
                 backgroundColor: ColorPalette().buttonBackground,
                 foregroundColor: ColorPalette().lightText,
               ),
               onPressed: isProcessing
                   ? null
                   : () async {
-                      setState(() {
-                        isProcessing = true;
-                      });
+                setState(() => isProcessing = true);
 
-                      bool personWasCreated = await setPersonData(
-                        Person(
-                          firstName: firstNameTextController.text,
-                          lastName: lastNameTextController.text,
-                          uid: 'test',
-                        ),
-                      );
+                bool ok = await setPersonData();
 
-                      //await Future.delayed(const Duration(seconds: 2));
-
-                      if (personWasCreated) {
-                        if (context.mounted) {
-                          Navigator.of(context).pop();
-                          // showDialog(
-                          //   barrierDismissible: false,
-                          //   context: context,
-                          //   builder: (context) {
-                          //     return const HowToPlayDialog();
-                          //   },
-                          // );
-                        }
-                      } else {
-                        setState(() {
-                          isProcessing = false;
-                        });
-                      }
-                    },
+                if (ok && mounted) {
+                  Navigator.pop(context);
+                } else {
+                  setState(() => isProcessing = false);
+                }
+              },
               child: Text(
-                  AppLocalizations.of(context)!.continueButton.capitalize()),
+                AppLocalizations.of(context)!.continueButton.capitalize(),
+              ),
             ),
           ],
         ),
+
         if (isProcessing)
           const Align(
             alignment: Alignment.center,
@@ -190,3 +189,4 @@ class _SignInWithNameDialogState extends ConsumerState<SignInWithNameDialog> {
     );
   }
 }
+

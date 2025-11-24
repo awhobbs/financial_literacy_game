@@ -11,6 +11,12 @@ import '../../domain/entities/levels.dart';
 import '../../domain/game_data_notifier.dart';
 import '../../domain/utils/device_and_personal_data.dart';
 import '../../l10n/l10n.dart';
+
+// Offline
+import '../../offline/offline_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+// UI
 import '../widgets/asset_content.dart';
 import '../widgets/game_app_bar.dart';
 import '../widgets/language_selection_dialog.dart';
@@ -32,69 +38,101 @@ class _HomepageState extends ConsumerState<Homepage> {
   @override
   void initState() {
     super.initState();
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      // get info from device that has been stored previously
+      //--------------------------------------------------------------------
+      // 1️⃣ RESTORE SIMPLE AUTOSAVED GAME STATE (cash, level, period, locale)
+      //--------------------------------------------------------------------
+      final saved = await OfflineStorage.loadSimpleState();
+
+      // Only restore if at least one value exists
+      if (saved["cash"] != null ||
+          saved["levelId"] != null ||
+          saved["period"] != null)
+      {
+        // Load the last level the user was on
+        ref.read(gameDataNotifierProvider.notifier).loadLevel(
+          saved["levelId"] ?? 0,
+        );
+
+        // Restore locale
+        ref.read(gameDataNotifierProvider.notifier).setLocale(
+          Locale(saved["locale"] ?? "en"),
+        );
+      }
+
+      //--------------------------------------------------------------------
+      // 2️⃣ DEVICE INFORMATION (system language)
+      //--------------------------------------------------------------------
       await getDeviceInfo();
-      // Determine locale: prefer stored; else show dropdown to choose
+
+      //--------------------------------------------------------------------
+      // 3️⃣ LANGUAGE SELECTION (only if not chosen before)
+      //--------------------------------------------------------------------
       final storedLocale = await loadLocaleFromLocal();
-      if (storedLocale == null) {
-        if (context.mounted) {
-          await showDialog(
+      if (storedLocale == null && mounted) {
+        await showDialog(
+          barrierDismissible: false,
+          context: context,
+          builder: (_) => LanguageSelectionDialog(
+            title: AppLocalizations.of(context)!.languagesTitle,
+          ),
+        );
+      }
+
+      //--------------------------------------------------------------------
+      // 4️⃣ APPLY SYSTEM LOCALE TO GAME
+      //--------------------------------------------------------------------
+      final systemLocale = await L10n.getSystemLocale();
+      ref.read(gameDataNotifierProvider.notifier).setLocale(systemLocale);
+
+      //--------------------------------------------------------------------
+      // 5️⃣ CHECK FOR EXISTING USER SESSION
+      //--------------------------------------------------------------------
+      final prefs = await SharedPreferences.getInstance();
+      final savedUID = prefs.getString('uid');
+      final savedPersonExists = prefs.getBool('personExists') ?? false;
+
+      bool personLoaded = false;
+
+      if (savedUID != null && savedUID.isNotEmpty && savedPersonExists) {
+        personLoaded = await loadPerson(ref: ref);
+      }
+
+      //--------------------------------------------------------------------
+      // 6️⃣ WELCOME BACK DIALOG FOR RETURNING USER
+      //--------------------------------------------------------------------
+      if (personLoaded) {
+        final ok = await loadLevelIDFromLocal(ref: ref);
+        if (ok && mounted) {
+          showDialog(
             barrierDismissible: false,
             context: context,
-            builder: (context) => LanguageSelectionDialog(
-              title: AppLocalizations.of(context)!.languagesTitle,
+            builder: (_) => const WelcomeBackDialog(),
+          );
+        }
+      } else {
+        //--------------------------------------------------------------------
+        // 7️⃣ NEW USER → SHOW SIGN-IN OPTIONS
+        //--------------------------------------------------------------------
+        if (mounted) {
+          showDialog(
+            barrierDismissible: false,
+            context: context,
+            builder: (_) => LanguageSelectionDialog(
+              title: AppLocalizations.of(context)!.selectLanguage,
+              showDialogWidgetAfterPop: const SignInDialogNew(),
             ),
           );
         }
       }
-      // After dialog or if already stored, load the best locale and set it
-      final chosen = await L10n.getSystemLocale();
-      ref.read(gameDataNotifierProvider.notifier).setLocale(chosen);
-      bool personLoaded = await loadPerson(ref: ref);
-// if the person has been stored from previous game sessions
-      if (personLoaded) {
-        // loading last level the user played
-        bool levelLoaded = await loadLevelIDFromLocal(ref: ref);
-        if (levelLoaded) {
-          if (context.mounted) {
-            showDialog(
-              barrierDismissible: false,
-              context: context,
-              builder: (context) {
-                return const WelcomeBackDialog();
-              },
-            );
-          }
-        }
-      } else {
-        // if there is no user stored on device
-        if (context.mounted) {
-          showDialog(
-            barrierDismissible: false,
-            context: context,
-            builder: (context) {
-              // show language options available
-              return LanguageSelectionDialog(
-                title: AppLocalizations.of(context)!.selectLanguage,
-                showDialogWidgetAfterPop: const SignInDialogNew(),
-              );
-            },
-          );
-        }
-      }
     });
-    super.initState();
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    int levelId = ref.watch(gameDataNotifierProvider).levelId;
+    final levelId = ref.watch(gameDataNotifierProvider).levelId;
+
     return Stack(
       children: [
         Scaffold(
@@ -102,45 +140,45 @@ class _HomepageState extends ConsumerState<Homepage> {
           resizeToAvoidBottomInset: false,
           appBar: const GameAppBar(),
           body: SafeArea(
-            // homepage scrollable when screen to small
             child: SingleChildScrollView(
               child: Center(
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: playAreaMaxWidth),
                   child: Padding(
-                    padding: const EdgeInsets.all(15.0),
+                    padding: const EdgeInsets.all(15),
                     child: Column(
                       children: [
                         LevelInfoCard(
-                          currentCash: ref.watch(gameDataNotifierProvider).cash,
+                          currentCash:
+                          ref.watch(gameDataNotifierProvider).cash,
                           levelId: levelId,
                           nextLevelCash: levels[levelId].cashGoal,
                         ),
                         const SizedBox(height: 10),
+
                         SectionCard(
-                          title: AppLocalizations.of(context)!.overview.toUpperCase(),
+                          title: AppLocalizations.of(context)!
+                              .overview
+                              .toUpperCase(),
                           content: const OverviewContent(),
                         ),
                         const SizedBox(height: 10),
-                        // if (levels[ref.read(gameDataNotifierProvider).levelId]
-                        //     .includePersonalIncome)
-                        //   SectionCard(
-                        //       title: AppLocalizations.of(context)!
-                        //           .personal
-                        //           .toUpperCase(),
-                        //       content: const PersonalContent()),
-                        // if (levels[ref.read(gameDataNotifierProvider).levelId]
-                        //     .includePersonalIncome)
-                        //   const SizedBox(height: 10),
+
                         SectionCard(
-                          title: AppLocalizations.of(context)!.assets.toUpperCase(),
+                          title: AppLocalizations.of(context)!
+                              .assets
+                              .toUpperCase(),
                           content: const AssetContent(),
                         ),
                         const SizedBox(height: 10),
-                        levelId != 0 && levelId != 1 ? SectionCard(
-                          title: AppLocalizations.of(context)!.loan(2).toUpperCase(),
-                          content: const LoanContent(),
-                        ) : Container(),
+
+                        if (levelId > 1)
+                          SectionCard(
+                            title: AppLocalizations.of(context)!
+                                .loan(2)
+                                .toUpperCase(),
+                            content: const LoanContent(),
+                          ),
                       ],
                     ),
                   ),
@@ -149,20 +187,18 @@ class _HomepageState extends ConsumerState<Homepage> {
             ),
           ),
         ),
+
+        // Confetti Effect
         Align(
           alignment: Alignment.topCenter,
           child: ConfettiWidget(
-            confettiController: ref.watch(gameDataNotifierProvider).confettiController,
+            confettiController:
+            ref.watch(gameDataNotifierProvider).confettiController,
             shouldLoop: true,
             emissionFrequency: 0.03,
             numberOfParticles: 20,
             maxBlastForce: 25,
             minBlastForce: 7,
-            // colors: [
-            //   ColorPalette().lightText,
-            //   ColorPalette().cashIndicator,
-            //   ColorPalette().backgroundContentCard,
-            // ],
             gravity: 0.2,
             particleDrag: 0.05,
             blastDirection: pi,

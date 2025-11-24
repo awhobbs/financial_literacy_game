@@ -1,3 +1,8 @@
+// ----------------------------------------------------------
+//  FINAL UPDATED DATABASE.DART (NULL-SAFE)
+//  Fixes String? → String errors and UID-restore
+// ----------------------------------------------------------
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:financial_literacy_game/config/constants.dart';
 import 'package:flutter/material.dart';
@@ -6,298 +11,272 @@ import '../concepts/asset.dart';
 import '../concepts/person.dart';
 
 FirebaseFirestore db = FirebaseFirestore.instance;
-// store the Firestore collection of users
+
+// USERS collection
 CollectionReference userCollectionRef = db.collection('users');
-// store the Firestore collection of uid user list
+
+// UID LISTS (UGPC, UGPN, UGPE, UGPW)
 CollectionReference uidListsCollectionRef = db.collection('uidLists');
 
-// variables to save current documents in database
+// CURRENT GAME SESSION POINTERS
 DocumentReference? currentGameSessionRef;
 DocumentReference? currentLevelDataRef;
 
+// ----------------------------------------------------------
+//  CLEAR SESSION STATE (important when switching users)
+// ----------------------------------------------------------
+void clearSessionState() {
+  currentGameSessionRef = null;
+  currentLevelDataRef = null;
+}
+
+// ----------------------------------------------------------
+//  LOOKUP USER BY UID
+// ----------------------------------------------------------
 Future<QuerySnapshot> _findUserInFirestoreByUID({required String uid}) async {
-  // call to Firestore to look up user via uid that was entered
-  return await userCollectionRef.where('uid', isEqualTo: uid).get();
+  return await userCollectionRef.where("uid", isEqualTo: uid).get();
 }
 
-Future<QuerySnapshot> _findUserInFirestore({required Person person}) async {
-  return await userCollectionRef
-      // look for current person in database
-      .where('firstName', isEqualTo: person.firstName)
-      .where('lastName', isEqualTo: person.lastName)
-      .where('uid', isEqualTo: person.uid)
-      .get();
-}
-
+// ----------------------------------------------------------
+//  GET LATEST GAME SESSION FOR THIS USER
+// ----------------------------------------------------------
 Future<DocumentReference?> _findLatestGameSessionRef(
     {required Person person}) async {
-  QuerySnapshot userQuerySnapshot = await _findUserInFirestore(person: person);
+  QuerySnapshot userSnap =
+  await userCollectionRef.where("uid", isEqualTo: person.uid ?? "").get();
 
-  if (userQuerySnapshot.docs.length == 1) {
-    // TODO: Can we change this to make it more general?
-    debugPrint("Unique User Found.");
-    // get the first document in list
-    QueryDocumentSnapshot docSnap = userQuerySnapshot.docs.first;
-    CollectionReference gameSessionRef =
-        docSnap.reference.collection('gameSessions');
+  if (userSnap.docs.isEmpty) return null;
 
-    QuerySnapshot lastGameSessionSnap = await gameSessionRef
-        .orderBy('startedOn', descending: true)
-        .limit(1)
-        .get();
+  final userDoc = userSnap.docs.first;
+  final sessions = userDoc.reference.collection("gameSessions");
 
-    debugPrint("Last game session found.");
-    return lastGameSessionSnap.docs.first.reference;
-  } else {
-    debugPrint("Last game session not found.");
-    return null;
-  }
+  final sessionSnap = await sessions
+      .orderBy("startedOn", descending: true)
+      .limit(1)
+      .get();
+
+  if (sessionSnap.docs.isEmpty) return null;
+
+  return sessionSnap.docs.first.reference;
 }
 
+// ----------------------------------------------------------
+//  CREATE NEW LEVEL
+// ----------------------------------------------------------
 void _createNewLevel({
   required int level,
   required double startingCash,
 }) async {
-  if (currentGameSessionRef == null) {
-    debugPrint('Current game session could not be found.');
-    return;
-  }
+  if (currentGameSessionRef == null) return;
 
-  Map<String, dynamic> levelContent = {
-    // information that gets saved to the database per level
-    'level': level,
-    'startedOn': DateTime.now(),
-    'levelStatus': Status.active.name,
-    'periods': 0,
-    'cash': [startingCash],
-    'decisions': [],
-    'offeredAssets': [],
-    'advanceTimes': [],
+  final data = {
+    "level": level,
+    "startedOn": DateTime.now(),
+    "levelStatus": Status.active.name,
+    "periods": 0,
+    "cash": [startingCash],
+    "decisions": [],
+    "offeredAssets": [],
+    "advanceTimes": [],
   };
 
-  CollectionReference levelDataRef =
-      currentGameSessionRef!.collection('levelData');
-  currentLevelDataRef = await levelDataRef.add(levelContent);
+  final levels = currentGameSessionRef!.collection("levelData");
+  currentLevelDataRef = await levels.add(data);
 }
 
+// ----------------------------------------------------------
+//  RESTART LEVEL
+// ----------------------------------------------------------
 void restartLevelFirebase({
   required int level,
   required double startingCash,
 }) async {
-  if (currentLevelDataRef == null) {
-    return;
-  }
-  currentLevelDataRef!.set(
-    {
-      'levelStatus': Status.lost.name,
-      'completedOn': DateTime.now(),
-    },
-    SetOptions(merge: true),
-  );
+  if (currentLevelDataRef == null) return;
+
+  await currentLevelDataRef!.set({
+    "levelStatus": Status.lost.name,
+    "completedOn": DateTime.now(),
+  }, SetOptions(merge: true));
 
   _createNewLevel(level: level, startingCash: startingCash);
 }
 
+// ----------------------------------------------------------
+//  RESTORE LAST SESSION (UID-BASED)
+// ----------------------------------------------------------
 Future<bool> reconnectToGameSession({required Person person}) async {
-  currentGameSessionRef = await _findLatestGameSessionRef(person: person);
-  if (currentGameSessionRef == null) {
-    debugPrint("Could not find latest game session.");
-    return false;
-  }
+  clearSessionState();
 
-  QuerySnapshot lastLevelSnapShot = await currentGameSessionRef!
-      .collection('levelData')
-      .orderBy('startedOn', descending: true)
+  currentGameSessionRef =
+  await _findLatestGameSessionRef(person: person);
+
+  if (currentGameSessionRef == null) return false;
+
+  final levelSnap = await currentGameSessionRef!
+      .collection("levelData")
+      .orderBy("startedOn", descending: true)
       .limit(1)
       .get();
 
-  if (lastLevelSnapShot.docs.length != 1) {
-    return false;
-  }
+  if (levelSnap.docs.isEmpty) return false;
 
-  currentLevelDataRef = lastLevelSnapShot.docs.first.reference;
+  currentLevelDataRef = levelSnap.docs.first.reference;
   return true;
 }
 
+// ----------------------------------------------------------
+//  PRIMARY UID LOOKUP
+// ----------------------------------------------------------
 Future<Person?> searchUserbyUIDInFirestore(String uid) async {
-  // get snapshot of users from Firestore
-  QuerySnapshot userQuerySnapshot = await _findUserInFirestoreByUID(uid: uid);
+  // 1) Try USERS collection
+  QuerySnapshot userSnap =
+  await _findUserInFirestoreByUID(uid: uid);
 
-  if (userQuerySnapshot.docs.isEmpty) {
-    debugPrint("No active user found. Checking uid lists...");
-    // get all documents from uidLists collection
-    QuerySnapshot uidListsQuerySnapshot = await uidListsCollectionRef.get();
-    for (QueryDocumentSnapshot docSnap in uidListsQuerySnapshot.docs) {
-      // get uidList from document
-      List<dynamic> uidList = docSnap.get('uids');
-      // go through list that consists of users
-      for (Map<String, dynamic> listEntry in uidList) {
-        if (uid == listEntry['uid']) {
-          // return the person connected to uid
-          return Person(
-            firstName: listEntry['firstName'],
-            lastName: listEntry['lastName'],
-            uid: listEntry['uid'],
-          );
-        }
-      }
-    }
-
-    return null;
-  } else {
-    // if the user is not found in Firestore
-    debugPrint("User with uid $uid found.");
-    QueryDocumentSnapshot docSnap = userQuerySnapshot.docs.first;
-    String firstName = docSnap.get('firstName');
-    String lastName = docSnap.get('lastName');
+  if (userSnap.docs.isNotEmpty) {
+    final doc = userSnap.docs.first;
     return Person(
-      firstName: firstName,
-      lastName: lastName,
+      firstName: doc.get("firstName") ?? "",
+      lastName: doc.get("lastName") ?? "",
       uid: uid,
     );
   }
+
+  // 2) Try UID LISTS collection
+  QuerySnapshot uidSnap = await uidListsCollectionRef.get();
+  for (var doc in uidSnap.docs) {
+    List<dynamic> list = doc.get("uids");
+    for (var entry in list) {
+      if (entry["uid"] == uid) {
+        return Person(
+          firstName: entry["firstName"] ?? "",
+          lastName: entry["lastName"] ?? "",
+          uid: entry["uid"] ?? "",
+        );
+      }
+    }
+  }
+
+  return null;
 }
 
+// ----------------------------------------------------------
+//  SAVE USER (ONCE PER UID)
+// ----------------------------------------------------------
 Future<void> saveUserInFirestore(Person person) async {
-  // get snapshot for specific user search
-  QuerySnapshot userQuerySnapshot = await _findUserInFirestore(person: person);
+  QuerySnapshot snap =
+  await _findUserInFirestoreByUID(uid: person.uid ?? "");
 
-  // save user if document does not exist yet
-  if (userQuerySnapshot.docs.isEmpty) {
-    debugPrint(
-        'save new user ${person.firstName} ${person.lastName} to firebase...');
-    Map<String, dynamic> userEntry = <String, dynamic>{
-      "firstName": person.firstName,
-      "lastName": person.lastName,
-      "uid": person.uid,
+  if (snap.docs.isEmpty) {
+    await userCollectionRef.add({
+      "firstName": person.firstName ?? "",
+      "lastName": person.lastName ?? "",
+      "uid": person.uid ?? "",
       "createdOn": DateTime.now(),
-    };
-    await userCollectionRef.add(userEntry);
-  }
-  // otherwise do not save a new user
-  else {
-    debugPrint('User ${person.firstName} ${person.lastName} already exists');
-    await endCurrentGameSession(status: Status.abandoned, person: person);
-    debugPrint('Deactivate last game session');
+    });
+  } else {
+    await endCurrentGameSession(
+        status: Status.abandoned, person: person);
   }
 }
 
+// ----------------------------------------------------------
+//  START NEW GAME SESSION
+// ----------------------------------------------------------
 Future<void> startGameSession({
   required Person person,
   required double startingCash,
 }) async {
-  debugPrint("Starting new game session.");
+  QuerySnapshot snap =
+  await _findUserInFirestoreByUID(uid: person.uid ?? "");
 
-  QuerySnapshot userQuerySnapshot = await _findUserInFirestore(person: person);
+  if (snap.docs.isEmpty) return;
 
-  if (userQuerySnapshot.docs.length != 1) {
-    debugPrint("More than one user found.");
-  }
+  final userDoc = snap.docs.first;
+  final sessions = userDoc.reference.collection("gameSessions");
 
-  QueryDocumentSnapshot docSnap = userQuerySnapshot.docs.first;
-  CollectionReference gameSessionRef =
-      docSnap.reference.collection('gameSessions');
+  currentGameSessionRef = await sessions.add({
+    "startedOn": DateTime.now(),
+    "sessionStatus": Status.active.name,
+  });
 
-  Map<String, dynamic> gameSessionContent = {
-    'startedOn': DateTime.now(),
-    'sessionStatus': Status.active.name,
-  };
-
-  currentGameSessionRef = await gameSessionRef.add(gameSessionContent);
   _createNewLevel(level: 1, startingCash: startingCash);
 }
 
-Future<void> endCurrentGameSession(
-    {required Status status, Person? person}) async {
+// ----------------------------------------------------------
+//  END SESSION
+// ----------------------------------------------------------
+Future<void> endCurrentGameSession({
+  required Status status,
+  Person? person,
+}) async {
   if (currentGameSessionRef == null) {
-    debugPrint('No current game session could be found.');
-    if (person == null) {
-      debugPrint('User info was not given.');
-      return;
-    }
-    bool reconnectSuccessful = await reconnectToGameSession(person: person);
-    if (!reconnectSuccessful) {
-      return;
-    }
+    if (person == null) return;
+    bool ok = await reconnectToGameSession(person: person);
+    if (!ok) return;
   }
 
-  debugPrint("Closing current level with status ${status.name}.");
   await currentLevelDataRef!.set({
-    'levelStatus': status.name,
-    'completedOn': DateTime.now(),
+    "levelStatus": status.name,
+    "completedOn": DateTime.now(),
   }, SetOptions(merge: true));
 
-  debugPrint("Ending current game session with status ${status.name}.");
   await currentGameSessionRef!.set({
-    'sessionStatus': status.name,
-    'completedOn': DateTime.now(),
+    "sessionStatus": status.name,
+    "completedOn": DateTime.now(),
   }, SetOptions(merge: true));
 }
 
+// ----------------------------------------------------------
+//  NEXT LEVEL
+// ----------------------------------------------------------
 void newLevelFirestore({
   required int levelID,
   required double startingCash,
 }) async {
-  currentLevelDataRef!.set(
-    {'levelStatus': Status.won.name, 'completedOn': DateTime.now()},
-    SetOptions(merge: true),
-  );
+  await currentLevelDataRef!.set({
+    "levelStatus": Status.won.name,
+    "completedOn": DateTime.now(),
+  }, SetOptions(merge: true));
 
   _createNewLevel(level: levelID + 1, startingCash: startingCash);
 }
 
+// ----------------------------------------------------------
+//  ADVANCE PERIOD
+// ----------------------------------------------------------
 void advancePeriodFirestore({
   required double newCashValue,
   required BuyDecision buyDecision,
   required Asset offeredAsset,
 }) async {
-  DocumentSnapshot docSnap = await currentLevelDataRef!.get();
-  // add cash value to list
-  List<double> cashArray = List.from(docSnap.get('cash'));
-  cashArray.add(double.parse(newCashValue.toStringAsFixed(2)));
+  DocumentSnapshot snap = await currentLevelDataRef!.get();
 
-  // add buy decision to list
-  List<String> decisionArray = List.from(docSnap.get('decisions'));
-  decisionArray.add(buyDecision.name);
+  List<double> cash = List.from(snap.get("cash"));
+  List<String> decisions = List.from(snap.get("decisions"));
+  List<String> times = List<String>.from(snap.get("advanceTimes"));
+  List offered = List.from(snap.get("offeredAssets"));
 
-  // add timestamp to list
-  List timeArray = List<String>.from(docSnap.get('advanceTimes'));
-  timeArray.add(DateTime.now().toString());
+  cash.add(double.parse(newCashValue.toStringAsFixed(2)));
+  decisions.add(buyDecision.name);
+  times.add(DateTime.now().toIso8601String());
 
-  // add cashROI to list
-  List<Map<String, dynamic>> offeredAssets =
-      List.from(docSnap.get('offeredAssets'));
-  Map<String, dynamic> newMapFromAsset = {
-    'type': offeredAsset.type.name,
-    'price': offeredAsset.price,
-    'income': offeredAsset.income,
-    'riskLevel': offeredAsset.riskLevel,
-    'lifeExpectancy': offeredAsset.lifeExpectancy,
-  };
-  offeredAssets.add(newMapFromAsset);
+  offered.add({
+    "type": offeredAsset.type.name,
+    "price": offeredAsset.price,
+    "income": offeredAsset.income,
+    "riskLevel": offeredAsset.riskLevel,
+    "lifeExpectancy": offeredAsset.lifeExpectancy,
+  });
 
-  docSnap.reference.set(
-      {
-        'periods': FieldValue.increment(1),
-        'cash': cashArray,
-        'decisions': decisionArray,
-        'offeredAssets': offeredAssets,
-        'advanceTimes': timeArray,
-      },
-      SetOptions(
-        merge: true,
-      ));
+  snap.reference.set({
+    "periods": FieldValue.increment(1),
+    "cash": cash,
+    "decisions": decisions,
+    "offeredAssets": offered,
+    "advanceTimes": times,
+  }, SetOptions(merge: true));
 }
 
-enum Status {
-  active,
-  won,
-  lost,
-  abandoned,
-}
-
-// enum LevelStatus {
-//   active,
-//   won,
-//   lost,
-// }
+// ----------------------------------------------------------
+enum Status { active, won, lost, abandoned }
+// ----------------------------------------------------------

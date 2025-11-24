@@ -1,18 +1,24 @@
-import 'package:financial_literacy_game/presentation/widgets/sign_in_with_name_dialog.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:financial_literacy_game/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:financial_literacy_game/l10n/app_localizations.dart';
 
 import '../../config/color_palette.dart';
 import '../../domain/concepts/person.dart';
 import '../../domain/utils/database.dart';
 import '../../domain/utils/utils.dart';
+import '../../domain/game_data_notifier.dart';
+
+import '../../offline/offline_storage.dart';
+import '../../offline/offline_sync.dart';
+
 import 'is_this_you_dialog.dart';
+import 'sign_in_with_name_dialog.dart';
 import 'menu_dialog.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SignInDialogNew extends ConsumerStatefulWidget {
-  const SignInDialogNew({Key? key}) : super(key: key);
+  const SignInDialogNew({super.key});
 
   @override
   ConsumerState<SignInDialogNew> createState() => _SignInDialogNewState();
@@ -22,36 +28,6 @@ class _SignInDialogNewState extends ConsumerState<SignInDialogNew> {
   late TextEditingController uidTextController;
   bool isProcessing = false;
 
-  Future<Person?> findPersonByUID({required String uid}) async {
-    // Exit if code has wrong length and show warning
-    if (uid.length != 7) {
-      showErrorSnackBar(
-        context: context,
-        errorMessage: AppLocalizations.of(context)!.enterUID.capitalize(),
-      );
-      return null;
-    }
-
-    // CHECK IF USER WITH UID ALREADY EXISTS (ANYWHERE)
-    Person? user = await searchUserbyUIDInFirestore(uid);
-    if (user != null) {
-      //print('${user.firstName} ${user.lastName}');
-      //ref.read(gameDataNotifierProvider.notifier).setPerson(user);
-      //savePersonLocally(user);
-      //await saveUserInFirestore(user);
-      //ref.read(gameDataNotifierProvider.notifier).resetGame();
-      return user;
-    } else {
-      if (context.mounted) {
-        showErrorSnackBar(
-          context: context,
-          errorMessage: AppLocalizations.of(context)!.codeNotFound,
-        );
-      }
-      return null;
-    }
-  }
-
   @override
   void initState() {
     super.initState();
@@ -60,8 +36,44 @@ class _SignInDialogNewState extends ConsumerState<SignInDialogNew> {
 
   @override
   void dispose() {
-    super.dispose();
     uidTextController.dispose();
+    super.dispose();
+  }
+
+  Future<Person?> findPerson({required String uid}) async {
+    if (uid.length != 7) {
+      showErrorSnackBar(
+        context: context,
+        errorMessage: AppLocalizations.of(context)!.enterUID,
+      );
+      return null;
+    }
+    return await searchUserbyUIDInFirestore(uid);
+  }
+
+  Future<void> handleLogin(Person person, WidgetRef ref) async {
+    // 1. Clear saved state
+    await OfflineStorage.clearSimpleState();
+
+    // 2. Clear prefs
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.clear();
+
+    // 3. Reset game
+    ref.read(gameDataNotifierProvider.notifier).resetGame();
+
+    // 4. Show confirmation
+    if (mounted) {
+      Navigator.of(context).pop();
+      showDialog(
+        barrierDismissible: false,
+        context: context,
+        builder: (_) => IsThisYouDialog(person: person),
+      );
+    }
+
+    // 5. sync immediately
+    await OfflineSync.sync(person.uid ?? "NOUID");
   }
 
   @override
@@ -74,93 +86,53 @@ class _SignInDialogNewState extends ConsumerState<SignInDialogNew> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              // Commented out the welcome screen
-              // SizedBox(
-              //   height:
-              //       MediaQuery.of(context).viewInsets.bottom == 0 ? 150 : 100,
-              //   child: SingleChildScrollView(
-              //     child: Text(AppLocalizations.of(context)!.welcomeText),
-              //   ),
-              // ),
               TextField(
-                enabled: !isProcessing,
                 controller: uidTextController,
-                decoration: InputDecoration(
-                    hintText: AppLocalizations.of(context)!.hintUID),
-                // Length of code is 7 characters
                 maxLength: 7,
-                maxLengthEnforcement: MaxLengthEnforcement.enforced,
+                decoration:
+                InputDecoration(hintText: AppLocalizations.of(context)!.hintUID),
                 inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp('[A-Z0-9]'))
+                  FilteringTextInputFormatter.allow(RegExp('[A-Z0-9]')),
                 ],
-                keyboardType: TextInputType.text,
-                textCapitalization: TextCapitalization.characters,
               ),
             ],
           ),
           actions: [
+            // Name-login fallback
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                elevation: 5.0,
-                backgroundColor: ColorPalette().buttonBackgroundSpecial,
-                foregroundColor: ColorPalette().lightText,
-              ),
-              // button when no code available
               onPressed: () {
                 Navigator.of(context).pop();
                 showDialog(
-                  barrierDismissible: false,
                   context: context,
-                  builder: (context) {
-                    return const SignInWithNameDialog();
-                  },
+                  barrierDismissible: false,
+                  builder: (_) => const SignInWithNameDialog(),
                 );
               },
               child: Text(AppLocalizations.of(context)!.noCodeButton),
             ),
+
             ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                elevation: 5.0,
-                backgroundColor: ColorPalette().buttonBackground,
-                foregroundColor: ColorPalette().lightText,
-              ),
               onPressed: isProcessing
                   ? null
                   : () async {
-                      setState(() {
-                        isProcessing = true;
-                      });
+                setState(() => isProcessing = true);
 
-                      Person? foundPerson =
-                          await findPersonByUID(uid: uidTextController.text);
+                Person? user =
+                await findPerson(uid: uidTextController.text);
 
-                      if (foundPerson != null) {
-                        if (context.mounted) {
-                          Navigator.of(context).pop();
-                          showDialog(
-                            barrierDismissible: false,
-                            context: context,
-                            builder: (context) {
-                              return IsThisYouDialog(person: foundPerson);
-                            },
-                          );
-                        }
-                      } else {
-                        setState(() {
-                          isProcessing = false;
-                        });
-                      }
-                    },
-              child: Text(
-                  AppLocalizations.of(context)!.continueButton.capitalize()),
+                if (user != null) {
+                  await handleLogin(user, ref);
+                } else {
+                  setState(() => isProcessing = false);
+                }
+              },
+              child: Text(AppLocalizations.of(context)!.continueButton),
             ),
           ],
         ),
+
         if (isProcessing)
-          const Align(
-            alignment: Alignment.center,
-            child: CircularProgressIndicator(),
-          ),
+          const Center(child: CircularProgressIndicator()),
       ],
     );
   }

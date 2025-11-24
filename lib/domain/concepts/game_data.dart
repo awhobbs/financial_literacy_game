@@ -1,30 +1,35 @@
 import 'dart:ui';
-
 import 'package:confetti/confetti.dart';
 import 'package:financial_literacy_game/l10n/l10n.dart';
 
 import '../../config/constants.dart';
-import '../../domain/concepts/recorded_data.dart';
 import '../concepts/person.dart';
+import '../concepts/asset.dart';
+import '../concepts/loan.dart';
+import '../concepts/recorded_data.dart';
 import '../utils/utils.dart';
-import 'asset.dart';
-import 'loan.dart';
 
 class GameData {
   final Person person;
   final Locale locale;
+
   final double cash;
   final int levelId;
   final int period;
   final double cashInterest;
+
   final double personalIncome;
   final double personalExpenses;
+
   final ConfettiController confettiController;
+
   final List<Asset> assets;
   final List<Loan> loans;
+
   final bool isBankrupt;
   final bool currentLevelSolved;
   final bool gameIsFinished;
+
   final List<RecordedData> recordedDataList;
 
   GameData({
@@ -45,7 +50,9 @@ class GameData {
     this.recordedDataList = const [],
   });
 
-  // method to copy custom class
+  // ----------------------------------------------------------
+  // COPYWITH (NO CHANGES TO YOUR GAME LOGIC)
+  // ----------------------------------------------------------
   GameData copyWith({
     Person? person,
     Locale? locale,
@@ -79,41 +86,24 @@ class GameData {
       currentLevelSolved: currentLevelSolved ?? this.currentLevelSolved,
       gameIsFinished: gameIsFinished ?? this.gameIsFinished,
       recordedDataList:
-          recordedDataList ?? copyRecordedDataArray(this.recordedDataList),
+      recordedDataList ?? copyRecordedDataArray(this.recordedDataList),
     );
   }
 
-  int get pigs {
-    int pigs = 0;
-    for (Asset asset in assets) {
-      if (asset.type == AssetType.pig) {
-        pigs += asset.numberOfAnimals;
-      }
-    }
-    return pigs;
-  }
+  // ----------------------------------------------------------
+  // GETTERS (unchanged)
+  // ----------------------------------------------------------
+  int get pigs => assets
+      .where((a) => a.type == AssetType.pig)
+      .fold(0, (sum, a) => sum + a.numberOfAnimals);
 
-  int get chickens {
-    int chickens = 0;
-    for (Asset asset in assets) {
-      if (asset.type == AssetType.chicken) {
-        chickens += asset.numberOfAnimals;
-      }
-    }
-    return chickens;
-  }
+  int get chickens => assets
+      .where((a) => a.type == AssetType.chicken)
+      .fold(0, (sum, a) => sum + a.numberOfAnimals);
 
-  int get goats {
-    int goats = 0;
-    for (Asset asset in assets) {
-      if (asset.type == AssetType.goat) {
-        goats += asset.numberOfAnimals;
-      }
-    }
-    return goats;
-  }
+  int get goats => assets
+      .where((a) => a.type == AssetType.goat)
+      .fold(0, (sum, a) => sum + a.numberOfAnimals);
 
-  double get conversionRate {
-    return L10n.getConversionRate(locale);
-  }
+  double get conversionRate => L10n.getConversionRate(locale);
 }
