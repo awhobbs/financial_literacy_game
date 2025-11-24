@@ -44,3 +44,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+uids/firebase_admin.json
+firebase_admin.json
+*.json
