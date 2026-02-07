@@ -12,6 +12,7 @@ import 'concepts/asset.dart';
 import 'concepts/game_data.dart';
 import 'concepts/loan.dart';
 import 'concepts/person.dart';
+import 'concepts/round_data.dart';
 import 'entities/levels.dart';
 import 'concepts/recorded_data.dart';
 
@@ -20,12 +21,23 @@ import 'utils/utils.dart';
 import 'utils/device_and_personal_data.dart';
 
 import '../../offline/offline_storage.dart';
+import '../../offline/offline_queue.dart';
 
 final gameDataNotifierProvider =
 StateNotifierProvider<GameDataNotifier, GameData>(
         (ref) => GameDataNotifier());
 
 class GameDataNotifier extends StateNotifier<GameData> {
+  // ----------------------------------------------------------
+  // ROUND TRACKING FIELDS
+  // ----------------------------------------------------------
+  String? _sessionId;
+  DateTime? _roundStartedAt;
+  int _currentRoundNumber = 0;
+  double _lastSavingsRate = 0.0;
+  double _lastLoanInterestRate = 0.0;
+  bool _lastAssetDied = false;
+
   GameDataNotifier()
       : super(
     GameData(
@@ -59,10 +71,46 @@ class GameDataNotifier extends StateNotifier<GameData> {
         "period": state.period,
         "locale": state.locale.languageCode,
       });
+      // Also save last round data
+      OfflineStorage.saveLastRound({
+        "roundNumber": _currentRoundNumber,
+        "sessionId": _sessionId ?? "",
+      });
     } catch (e) {
       debugPrint("Autosave failed: $e");
     }
   }
+
+  // ----------------------------------------------------------
+  // SESSION & ROUND TRACKING
+  // ----------------------------------------------------------
+
+  /// Start a new game session - call when player starts playing
+  void startSession() {
+    _sessionId = DateTime.now().millisecondsSinceEpoch.toString();
+    _currentRoundNumber = 0;
+    debugPrint("Session started: $_sessionId");
+  }
+
+  /// Mark the start of a round - call when investment dialog opens
+  void markRoundStart({double savingsRate = 0.0, double loanInterestRate = 0.0}) {
+    _roundStartedAt = DateTime.now();
+    _lastSavingsRate = savingsRate;
+    _lastLoanInterestRate = loanInterestRate;
+    _lastAssetDied = false;
+    debugPrint("Round started at: $_roundStartedAt");
+  }
+
+  /// Mark that an asset died during this round
+  void markAssetDied() {
+    _lastAssetDied = true;
+  }
+
+  /// Get the current session ID
+  String? get sessionId => _sessionId;
+
+  /// Get the current round number
+  int get currentRoundNumber => _currentRoundNumber;
 
   // ----------------------------------------------------------
   // PERSON
@@ -108,6 +156,15 @@ class GameDataNotifier extends StateNotifier<GameData> {
     required BuyDecision buyDecision,
     required Asset selectedAsset,
   }) async {
+    // Capture state BEFORE changes for round data
+    final stateBefore = StateSnapshot(
+      cash: state.cash,
+      totalAssets: state.assets.fold(0.0, (sum, a) => sum + a.price),
+      totalLoans: state.loans.fold(0.0, (sum, l) => sum + l.asset.price),
+      totalIncome: calculateTotalIncome(),
+      totalExpenses: calculateTotalExpenses(),
+    );
+
     // increment period
     state = state.copyWith(period: state.period + 1);
     state = state.copyWith(cashInterest: newCashInterest);
@@ -140,11 +197,29 @@ class GameDataNotifier extends StateNotifier<GameData> {
 
     state = state.copyWith(cash: newCash);
 
-    // save to Firestore
+    // save to Firestore (legacy)
     advancePeriodFirestore(
       newCashValue: newCash,
       buyDecision: buyDecision,
       offeredAsset: selectedAsset,
+    );
+
+    // Capture state AFTER changes for round data
+    final stateAfter = StateSnapshot(
+      cash: state.cash,
+      totalAssets: state.assets.fold(0.0, (sum, a) => sum + a.price),
+      totalLoans: state.loans.fold(0.0, (sum, l) => sum + l.asset.price),
+      totalIncome: calculateTotalIncome(),
+      totalExpenses: calculateTotalExpenses(),
+    );
+
+    // Increment round number and create RoundData
+    _currentRoundNumber++;
+    await _recordRoundData(
+      buyDecision: buyDecision,
+      selectedAsset: selectedAsset,
+      stateBefore: stateBefore,
+      stateAfter: stateAfter,
     );
 
     // bankrupt?
@@ -162,6 +237,73 @@ class GameDataNotifier extends StateNotifier<GameData> {
     }
 
     _autosave();
+  }
+
+  // ----------------------------------------------------------
+  // RECORD ROUND DATA TO OFFLINE QUEUE
+  // ----------------------------------------------------------
+  Future<void> _recordRoundData({
+    required BuyDecision buyDecision,
+    required Asset selectedAsset,
+    required StateSnapshot stateBefore,
+    required StateSnapshot stateAfter,
+  }) async {
+    final now = DateTime.now();
+    final roundStarted = _roundStartedAt ?? now;
+    final decisionTimeMs = now.difference(roundStarted).inMilliseconds;
+
+    // Get decision string
+    final decisionStr = switch (buyDecision) {
+      BuyDecision.buyCash => 'buyCash',
+      BuyDecision.loan => 'loan',
+      BuyDecision.dontBuy => 'dontBuy',
+    };
+
+    // Get concepts tested
+    final concepts = getConceptsTested(
+      levelId: state.levelId,
+      decision: decisionStr,
+      assetRiskLevel: selectedAsset.riskLevel,
+      loanInterestRate: _lastLoanInterestRate,
+      hasSavingsRate: _lastSavingsRate > 0,
+    );
+
+    // Assess decision quality
+    final quality = assessDecisionQuality(
+      decision: decisionStr,
+      cash: stateBefore.cash,
+      assetPrice: selectedAsset.price,
+      assetIncome: selectedAsset.income,
+      assetRiskLevel: selectedAsset.riskLevel,
+      assetLifeExpectancy: selectedAsset.lifeExpectancy,
+      loanInterestRate: _lastLoanInterestRate,
+      savingsRate: _lastSavingsRate,
+    );
+
+    // Create RoundData
+    final roundData = RoundData(
+      uid: state.person.uid ?? 'UNKNOWN',
+      sessionId: _sessionId ?? DateTime.now().millisecondsSinceEpoch.toString(),
+      levelId: state.levelId,
+      roundNumber: _currentRoundNumber,
+      roundStartedAt: roundStarted,
+      decisionMadeAt: now,
+      decisionTimeMs: decisionTimeMs,
+      decision: decisionStr,
+      stateBefore: stateBefore,
+      stateAfter: stateAfter,
+      offeredAsset: OfferedAssetData.fromAsset(selectedAsset),
+      conceptsTested: concepts,
+      decisionQuality: quality,
+      assetDied: _lastAssetDied,
+    );
+
+    // Queue for offline sync
+    final uid = state.person.uid ?? 'UNKNOWN';
+    final queue = OfflineQueue(uid);
+    await queue.add(roundData.toQueueAction());
+
+    debugPrint("Round $currentRoundNumber queued for sync");
   }
 
   // ----------------------------------------------------------
@@ -273,9 +415,13 @@ class GameDataNotifier extends StateNotifier<GameData> {
   }
 
   Future<bool> _animalDied(Asset asset, Function show) async {
-    return asset.riskLevel > Random().nextDouble()
-        ? await show(asset)
-        : false;
+    final died = asset.riskLevel > Random().nextDouble();
+    if (died) {
+      markAssetDied(); // Track for round data
+      await show(asset);
+      return true;
+    }
+    return false;
   }
 
   // ----------------------------------------------------------
@@ -325,6 +471,9 @@ class GameDataNotifier extends StateNotifier<GameData> {
       confettiController: state.confettiController,
     );
 
+    // Start new session for round tracking
+    startSession();
+
     saveLevelIDLocally(0);
     startGameSession(
       person: state.person,
@@ -332,5 +481,20 @@ class GameDataNotifier extends StateNotifier<GameData> {
     );
 
     _autosave();
+  }
+
+  // ----------------------------------------------------------
+  // RESTORE SESSION (for resume)
+  // ----------------------------------------------------------
+  Future<void> restoreSession() async {
+    final lastRound = await OfflineStorage.loadLastRound();
+    if (lastRound != null) {
+      _sessionId = lastRound['sessionId'] as String?;
+      _currentRoundNumber = lastRound['roundNumber'] as int? ?? 0;
+      debugPrint("Session restored: $_sessionId, round: $_currentRoundNumber");
+    } else {
+      // No previous session, start fresh
+      startSession();
+    }
   }
 }

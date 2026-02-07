@@ -11,6 +11,7 @@ import '../../domain/game_data_notifier.dart';
 
 import '../../offline/offline_storage.dart';
 import '../../offline/offline_sync.dart';
+import '../../offline/uid_cache.dart';
 
 import 'is_this_you_dialog.dart';
 import 'sign_in_with_name_dialog.dart';
@@ -48,7 +49,36 @@ class _SignInDialogNewState extends ConsumerState<SignInDialogNew> {
       );
       return null;
     }
-    return await searchUserbyUIDInFirestore(uid);
+
+    // Try Firestore first
+    try {
+      final person = await searchUserbyUIDInFirestore(uid);
+      if (person != null) {
+        return person;
+      }
+    } catch (e) {
+      debugPrint("Firestore lookup failed: $e");
+      // Fall through to offline lookup
+    }
+
+    // Fallback to offline CSV cache
+    if (UIDCache.isValidOffline(uid)) {
+      debugPrint("UID found in offline cache: $uid");
+      return Person(
+        firstName: UIDCache.getFirstName(uid) ?? "",
+        lastName: UIDCache.getLastName(uid) ?? "",
+        uid: uid,
+      );
+    }
+
+    // UID not found anywhere
+    if (mounted) {
+      showErrorSnackBar(
+        context: context,
+        errorMessage: "Code not found. Please check and try again.",
+      );
+    }
+    return null;
   }
 
   Future<void> handleLogin(Person person, WidgetRef ref) async {

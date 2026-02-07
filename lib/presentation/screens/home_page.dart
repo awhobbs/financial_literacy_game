@@ -1,5 +1,4 @@
 import 'dart:math';
-
 import 'package:confetti/confetti.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -11,11 +10,11 @@ import '../../domain/entities/levels.dart';
 import '../../domain/game_data_notifier.dart';
 import '../../domain/utils/device_and_personal_data.dart';
 import '../../l10n/l10n.dart';
+import '../../offline/offline_storage.dart';
+import '../../offline/offline_sync.dart';
+import '../../offline/uid_cache.dart';
 
-// Offline system
-import 'package:shared_preferences/shared_preferences.dart';
-
-// UI Components
+// UI
 import '../widgets/asset_content.dart';
 import '../widgets/game_app_bar.dart';
 import '../widgets/language_selection_dialog.dart';
@@ -26,6 +25,8 @@ import '../widgets/section_card.dart';
 import '../widgets/sign_in_dialog_with_code.dart';
 import '../widgets/welcome_back_dialog.dart';
 
+import 'package:shared_preferences/shared_preferences.dart';
+
 class Homepage extends ConsumerStatefulWidget {
   const Homepage({Key? key}) : super(key: key);
 
@@ -33,24 +34,31 @@ class Homepage extends ConsumerStatefulWidget {
   ConsumerState<Homepage> createState() => _HomepageState();
 }
 
-class _HomepageState extends ConsumerState<Homepage> {
+class _HomepageState extends ConsumerState<Homepage> with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+
+    // Add lifecycle observer
+    WidgetsBinding.instance.addObserver(this);
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
+      // Initialize offline storage and load UID cache
+      await OfflineStorage.initialize();
+      await UIDCache.loadFromCSV();
+      debugPrint("UID cache loaded: ${UIDCache.cachedCount} UIDs");
 
-      // ------------------------------------------------------------------
-      // 1️⃣ DO NOT RESTORE ANY OLD GAME STATE
-      // ------------------------------------------------------------------
-      // Removed: loadSessionState(), loadFromJson()
-
-      // ------------------------------------------------------------------
-      // 2️⃣ Load device info (language, locale)
-      // ------------------------------------------------------------------
+      /// --------------------------------------------------------
+      /// 🔥 Step 1: Device info only
+      /// --------------------------------------------------------
       await getDeviceInfo();
 
-      // If language not chosen, ask user
-      final storedLocale = await loadLocaleFromLocal();
+      /// --------------------------------------------------------
+      /// Step 2: Language selection (always required)
+      /// --------------------------------------------------------
+      final prefs = await SharedPreferences.getInstance();
+      final storedLocale = prefs.getString("locale");
+
       if (storedLocale == null && mounted) {
         await showDialog(
           barrierDismissible: false,
@@ -61,53 +69,97 @@ class _HomepageState extends ConsumerState<Homepage> {
         );
       }
 
-      // Apply preferred locale
+      /// Apply selected locale
       final chosenLocale = await L10n.getSystemLocale();
       ref.read(gameDataNotifierProvider.notifier).setLocale(chosenLocale);
 
-      // ------------------------------------------------------------------
-      // 3️⃣ Check if user already exists
-      // ------------------------------------------------------------------
-      final prefs = await SharedPreferences.getInstance();
+      /// --------------------------------------------------------
+      /// Step 3: Check if person exists
+      /// --------------------------------------------------------
       final savedUID = prefs.getString('uid');
       final savedPersonExists = prefs.getBool('personExists') ?? false;
 
-      bool personLoaded = false;
+      if (savedUID != null && savedPersonExists) {
+        bool personLoaded = await loadPerson(ref: ref);
 
-      if (savedUID != null && savedUID.isNotEmpty && savedPersonExists) {
-        // Restore ONLY the PERSON — not game progress
-        personLoaded = await loadPerson(ref: ref);
+        if (personLoaded) {
+          bool levelLoaded = await loadLevelIDFromLocal(ref: ref);
+          if (levelLoaded && mounted) {
+            showDialog(
+              barrierDismissible: false,
+              context: context,
+              builder: (_) => const WelcomeBackDialog(),
+            );
+            return;
+          }
+        }
       }
 
-      // ------------------------------------------------------------------
-      // 4️⃣ If person exists → reset game but show welcome back
-      // ------------------------------------------------------------------
-      if (personLoaded) {
-        // Start game fresh (no previous level, cash, animals, loans)
-        ref.read(gameDataNotifierProvider.notifier).resetGame();
+      /// --------------------------------------------------------
+      /// Step 4: If no user → show Sign-in (UID)
+      /// --------------------------------------------------------
+      if (mounted) {
+        showDialog(
+          barrierDismissible: false,
+          context: context,
+          builder: (_) => const SignInDialogNew(),
+        );
+      }
+    });
+  }
 
-        if (mounted) {
-          showDialog(
-            barrierDismissible: false,
-            context: context,
-            builder: (_) => const WelcomeBackDialog(),
-          );
-        }
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
-      } else {
-        // ------------------------------------------------------------------
-        // 5️⃣ If no user → force sign-in flow
-        // ------------------------------------------------------------------
-        if (mounted) {
-          showDialog(
-            barrierDismissible: false,
-            context: context,
-            builder: (_) => LanguageSelectionDialog(
-              title: AppLocalizations.of(context)!.selectLanguage,
-              showDialogWidgetAfterPop: const SignInDialogNew(),
-            ),
-          );
-        }
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+
+    switch (state) {
+      case AppLifecycleState.paused:
+      case AppLifecycleState.inactive:
+        // App going to background - save state
+        _saveGameState();
+        break;
+
+      case AppLifecycleState.resumed:
+        // App returning to foreground - trigger sync
+        _triggerSync();
+        break;
+
+      case AppLifecycleState.detached:
+      case AppLifecycleState.hidden:
+        // No action needed
+        break;
+    }
+  }
+
+  void _saveGameState() {
+    debugPrint("App backgrounded - saving game state...");
+    try {
+      final gameData = ref.read(gameDataNotifierProvider);
+      OfflineStorage.saveSimpleState({
+        "cash": gameData.cash,
+        "levelId": gameData.levelId,
+        "period": gameData.period,
+        "locale": gameData.locale.languageCode,
+      });
+      debugPrint("Game state saved successfully");
+    } catch (e) {
+      debugPrint("Failed to save game state: $e");
+    }
+  }
+
+  void _triggerSync() {
+    debugPrint("App resumed - triggering sync...");
+    final prefs = SharedPreferences.getInstance();
+    prefs.then((p) {
+      final uid = p.getString('uid');
+      if (uid != null && uid.isNotEmpty) {
+        OfflineSync.sync(uid);
       }
     });
   }
@@ -122,42 +174,39 @@ class _HomepageState extends ConsumerState<Homepage> {
           backgroundColor: ColorPalette().background,
           resizeToAvoidBottomInset: false,
           appBar: const GameAppBar(),
-
           body: SafeArea(
             child: SingleChildScrollView(
               child: Center(
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: playAreaMaxWidth),
+                  constraints:
+                  const BoxConstraints(maxWidth: playAreaMaxWidth),
                   child: Padding(
                     padding: const EdgeInsets.all(15),
                     child: Column(
                       children: [
-                        // LEVEL CARD
                         LevelInfoCard(
-                          currentCash: ref.watch(gameDataNotifierProvider).cash,
+                          currentCash:
+                          ref.watch(gameDataNotifierProvider).cash,
                           levelId: levelId,
                           nextLevelCash: levels[levelId].cashGoal,
                         ),
                         const SizedBox(height: 10),
-
-                        // OVERVIEW
                         SectionCard(
-                          title: AppLocalizations.of(context)!.overview.toUpperCase(),
+                          title:
+                          AppLocalizations.of(context)!.overview.toUpperCase(),
                           content: const OverviewContent(),
                         ),
                         const SizedBox(height: 10),
-
-                        // ASSETS
                         SectionCard(
-                          title: AppLocalizations.of(context)!.assets.toUpperCase(),
+                          title:
+                          AppLocalizations.of(context)!.assets.toUpperCase(),
                           content: const AssetContent(),
                         ),
                         const SizedBox(height: 10),
-
-                        // LOANS – only after Level 1
                         if (levelId > 1)
                           SectionCard(
-                            title: AppLocalizations.of(context)!.loan(2).toUpperCase(),
+                            title: AppLocalizations.of(context)!.loan(2)
+                                .toUpperCase(),
                             content: const LoanContent(),
                           ),
                       ],
@@ -169,7 +218,7 @@ class _HomepageState extends ConsumerState<Homepage> {
           ),
         ),
 
-        // CONFETTI CELEBRATION
+        /// Confetti
         Align(
           alignment: Alignment.topCenter,
           child: ConfettiWidget(
@@ -190,4 +239,5 @@ class _HomepageState extends ConsumerState<Homepage> {
     );
   }
 }
+
 

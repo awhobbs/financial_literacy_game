@@ -143,6 +143,12 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
     levelAssets = currentLevel.assets;
     levelLoan = currentLevel.loan;
 
+    // Mark round start for analytics tracking
+    widget.ref.read(gameDataNotifierProvider.notifier).markRoundStart(
+      savingsRate: currentLevel.savingsRate,
+      loanInterestRate: currentLevel.loan.interestRate,
+    );
+
     super.initState();
   }
 
