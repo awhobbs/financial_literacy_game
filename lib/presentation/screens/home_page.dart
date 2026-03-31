@@ -57,7 +57,7 @@ class _HomepageState extends ConsumerState<Homepage> with WidgetsBindingObserver
       /// Step 2: Language selection (always required)
       /// --------------------------------------------------------
       final prefs = await SharedPreferences.getInstance();
-      final storedLocale = prefs.getString("locale");
+      final storedLocale = prefs.getString("languageCode");
 
       if (storedLocale == null && mounted) {
         await showDialog(

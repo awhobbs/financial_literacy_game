@@ -60,6 +60,7 @@ class OfflineStorage {
     }
     if (data["locale"] != null) {
       await prefs.setString("locale", data["locale"]);
+      await prefs.setString("languageCode", data["locale"]);
     }
   }
 

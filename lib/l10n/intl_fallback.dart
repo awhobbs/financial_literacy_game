@@ -1,7 +1,7 @@
 import 'package:intl/intl.dart';
 import 'package:flutter/widgets.dart';
 
-const _unsupportedIntl = {'lg', 'ach'};
+const _unsupportedIntl = {'lg', 'ach', 'nyn', 'kn'};
 
 String intlLocaleFor(Locale l) =>
     _unsupportedIntl.contains(l.languageCode) ? 'en' : l.toString();
