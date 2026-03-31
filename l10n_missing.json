@@ -1,0 +1,90 @@
+{
+  "ach": [
+    "pig",
+    "enterUID",
+    "cash",
+    "cashValue"
+  ],
+
+  "es": [
+    "enterUID",
+    "cashValue"
+  ],
+
+  "es_GT": [
+    "enterUID",
+    "cashValue"
+  ],
+
+  "es_PE": [
+    "enterUID"
+  ],
+
+  "kn": [
+    "pig",
+    "enterUID",
+    "cashValue"
+  ],
+
+  "lg": [
+    "pig",
+    "enterUID",
+    "cashValue"
+  ],
+
+  "nyn": [
+    "titleSignIn",
+    "welcomeText",
+    "hintFirstName",
+    "hintLastName",
+    "continueButton",
+    "pig",
+    "cashAlert",
+    "howToPlay",
+    "instructionText1",
+    "instructionText2",
+    "instructionText3",
+    "instructionText4",
+    "instructionText5",
+    "instructionText6",
+    "investmentOptions",
+    "dontBuy",
+    "payCash",
+    "lostGame",
+    "restartLevel",
+    "restartGame",
+    "clearCache",
+    "nextLevel",
+    "enterUID",
+    "enterName",
+    "reachedNextLevel",
+    "gameFinished",
+    "notMe",
+    "signInDifferentPerson",
+    "incomePerYear",
+    "lifeExpectancy",
+    "lifeRisk",
+    "cashGoal",
+    "assetDied",
+    "assetsDied",
+    "currentCash",
+    "borrowAt",
+    "interestCash",
+    "cashGoalReach",
+    "languagesTitle",
+    "sameUser",
+    "startAtLevel",
+    "welcomeBack",
+    "cashValue",
+    "selectLanguage",
+    "hintUID",
+    "confirmNameTitle",
+    "confirmName",
+    "noButton",
+    "yesButton",
+    "codeNotFound",
+    "noCodeButton",
+    "signInName",
+    "backButton"
+  ]
+}
