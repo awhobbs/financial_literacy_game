@@ -6,9 +6,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/game_data_notifier.dart';
+import '../../offline/offline_storage.dart';
+import '../../offline/offline_sync.dart';
 import 'how_to_play_dialog.dart';
 import 'language_selection_dialog.dart';
 import 'menu_dialog.dart';
+import 'sign_in_dialog_with_code.dart';
 
 class SettingsDialog extends ConsumerWidget {
   const SettingsDialog({Key? key}) : super(key: key);
@@ -47,13 +50,49 @@ class SettingsDialog extends ConsumerWidget {
               foregroundColor: ColorPalette().lightText,
             ),
             onPressed: () async {
-              SharedPreferences prefs = await SharedPreferences.getInstance();
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('New Player'),
+                  content: const Text(
+                    'This will save the current player\'s data and let a new player sign in.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(false),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(true),
+                      child: const Text('Continue'),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmed != true) return;
+
+              // Sync current player's pending data before clearing
+              final prefs = await SharedPreferences.getInstance();
+              final uid = prefs.getString('uid');
+              if (uid != null && uid.isNotEmpty) {
+                await OfflineSync.sync(uid);
+              }
+
+              // Clear all local state
+              await OfflineStorage.clearSimpleState();
               await prefs.clear();
+              ref.read(gameDataNotifierProvider.notifier).resetGame();
+
               if (context.mounted) {
-                Navigator.of(context).pop();
+                Navigator.of(context).pop(); // close settings
+                showDialog(
+                  barrierDismissible: false,
+                  context: context,
+                  builder: (_) => const SignInDialogNew(),
+                );
               }
             },
-            child: Text(AppLocalizations.of(context)!.clearCache.capitalize()),
+            child: const Text('New Player'),
           ),
           // COMMENTED OUT: OPTION TO ADVANCE TO THE NEXT LEVEL
           const SizedBox(height: 10),

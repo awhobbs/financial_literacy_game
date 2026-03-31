@@ -34,6 +34,9 @@ class LevelInfoCard extends ConsumerWidget {
     ref.read(gameDataNotifierProvider.notifier).convertAmount(currentCash);
     final convertedNextLevelCash =
     ref.read(gameDataNotifierProvider.notifier).convertAmount(nextLevelCash);
+    final convertedStartingCash = ref
+        .read(gameDataNotifierProvider.notifier)
+        .convertAmount(levels[levelId].startingCash);
 
     return Stack(
       children: [
@@ -69,6 +72,7 @@ class LevelInfoCard extends ConsumerWidget {
                     child: CashIndicator(
                       currentCash: convertedCurrentCash,
                       cashGoal: convertedNextLevelCash,
+                      startingCash: convertedStartingCash,
                     ),
                   ),
                   const SizedBox(width: 8),

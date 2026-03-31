@@ -20,6 +20,7 @@ import 'asset_carousel.dart';
 import 'cash_alert_dialog.dart';
 import 'lost_game_dialog.dart';
 import 'next_level_dialog.dart';
+import 'round_complete_dialog.dart';
 import 'won_game_dialog.dart';
 
 class InvestmentDialog extends StatefulWidget {
@@ -63,6 +64,20 @@ void checkNextLevelReached(WidgetRef ref, BuildContext context) {
       context: context,
       builder: (context) {
         return NextLevelDialog(ref: ref);
+      },
+    );
+  }
+}
+
+void checkRoundComplete(WidgetRef ref, BuildContext context) {
+  final state = ref.read(gameDataNotifierProvider);
+  if (!state.isBankrupt && !state.gameIsFinished && !state.currentLevelSolved) {
+    ref.read(gameDataNotifierProvider.notifier).showConfetti();
+    showDialog(
+      barrierDismissible: false,
+      context: context,
+      builder: (context) {
+        return RoundCompleteDialog(ref: ref);
       },
     );
   }
@@ -340,6 +355,7 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
                 checkBankruptcy(widget.ref, context);
                 checkGameHasEnded(widget.ref, context);
                 checkNextLevelReached(widget.ref, context);
+                checkRoundComplete(widget.ref, context);
               },
               child: Text(AppLocalizations.of(context)!.dontBuy),
             ),
@@ -366,6 +382,7 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
                       checkBankruptcy(widget.ref, context);
                       checkGameHasEnded(widget.ref, context);
                       checkNextLevelReached(widget.ref, context);
+                      checkRoundComplete(widget.ref, context);
                     }
                   }
                 },
@@ -389,6 +406,7 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
                     checkBankruptcy(widget.ref, context);
                     checkGameHasEnded(widget.ref, context);
                     checkNextLevelReached(widget.ref, context);
+                    checkRoundComplete(widget.ref, context);
                   }
                 },
                 child: Text(AppLocalizations.of(context)!.borrow),
