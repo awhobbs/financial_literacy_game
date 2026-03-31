@@ -72,7 +72,7 @@ class LevelInfoCard extends ConsumerWidget {
                     child: CashIndicator(
                       currentCash: convertedCurrentCash,
                       cashGoal: convertedNextLevelCash,
-                      startingCash: convertedStartingCash,
+                      startingCash: convertedStartingCash, // bar starts at 0 when cash == startingCash
                     ),
                   ),
                   const SizedBox(width: 8),

@@ -6,7 +6,7 @@ class ColorPalette {
       const Color.fromRGBO(161, 160, 153, 0.48627450980392156);
   Color get backgroundSectionCard => const Color.fromRGBO(128, 222, 234, 1.0);
   Color get backgroundContentCard => const Color.fromRGBO(0, 131, 143, 1.0);
-  Color get cashIndicator => const Color.fromRGBO(255, 160, 122, 1.0);
+  Color get cashIndicator => const Color.fromRGBO(255, 140, 0, 1.0);
   Color get popUpBackground => const Color.fromRGBO(224, 247, 250, 1.0);
   Color get buttonBackground => const Color.fromRGBO(0, 131, 143, 1.0);
   Color get buttonBackgroundSpecial => const Color.fromRGBO(90, 97, 97, 1.0);
