@@ -25,7 +25,10 @@
   </script>
 
   <!-- IMPORTANT: add version query to force cache update -->
-  <script src="flutter.js?v=2025112301" defer></script>
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+  <script src="flutter.js?v=2026033101" defer></script>
 
 </head>
 <body>
@@ -34,6 +37,7 @@
     _flutter.loader.loadEntrypoint({
       serviceWorker: {
         serviceWorkerVersion: serviceWorkerVersion,
+        timeoutMillis: 4000,
       },
       onEntrypointLoaded: function(engineInitializer) {
         engineInitializer.initializeEngine().then(function(appRunner) {

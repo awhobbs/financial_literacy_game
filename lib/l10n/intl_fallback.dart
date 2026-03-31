@@ -11,18 +11,21 @@ String intlLocaleCode(String localeName) {
   return _unsupportedIntl.contains(code) ? 'en' : localeName;
 }
 
+const _ugandaLangs = {'lg', 'kn', 'nyn', 'ach'};
+
 String formatUgx(num amount, Locale l, {int decimalDigits = 0}) {
   final loc = intlLocaleFor(l);
+  final currency = _ugandaLangs.contains(l.languageCode) ? 'UGX' : 'USD';
   try {
     return NumberFormat.currency(
       locale: loc,
-      name: 'UGX',
+      name: currency,
       decimalDigits: decimalDigits,
     ).format(amount);
   } catch (_) {
     return NumberFormat.currency(
       locale: 'en',
-      name: 'UGX',
+      name: currency,
       decimalDigits: decimalDigits,
     ).format(amount);
   }

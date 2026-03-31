@@ -20,7 +20,8 @@ class SettingsDialog extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return MenuDialog(
       title: AppLocalizations.of(context)!.settings.capitalize(),
-      content: Column(
+      content: SingleChildScrollView(
+        child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -141,6 +142,7 @@ class SettingsDialog extends ConsumerWidget {
           //   child: const Text('Restart Game'),
           // ),
         ],
+      ),
       ),
     );
   }

@@ -1,5 +1,10 @@
 
-String currencyForLocale(String localeCode) => 'UGX';
+const _ugandaLocales = {'lg', 'kn', 'nyn', 'ach'};
+
+String currencyForLocale(String localeCode) {
+  final lang = localeCode.split('_').first;
+  return _ugandaLocales.contains(lang) ? 'UGX' : 'USD';
+}
 
 String formatAmount(
     double value,
