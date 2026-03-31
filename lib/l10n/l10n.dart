@@ -85,16 +85,8 @@ class L10n {
     return all.any((loc) => loc.languageCode == l.languageCode);
   }
 
-  /// Currency conversion rate: Uganda locales → UGX (×4000), others → USD (×1)
+  /// Currency conversion rate: all locales multiply by 4000
   static double getConversionRate(Locale locale) {
-    switch (locale.languageCode) {
-      case 'lg':
-      case 'kn':
-      case 'nyn':
-      case 'ach':
-        return 4000;
-      default:
-        return 1;
-    }
+    return 4000;
   }
 }

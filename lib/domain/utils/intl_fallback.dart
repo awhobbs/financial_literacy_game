@@ -1,9 +1,12 @@
 
 const _ugandaLocales = {'lg', 'kn', 'nyn', 'ach'};
+const _spanishLocales = {'es'};
 
 String currencyForLocale(String localeCode) {
   final lang = localeCode.split('_').first;
-  return _ugandaLocales.contains(lang) ? 'UGX' : 'USD';
+  if (_ugandaLocales.contains(lang) || lang == 'en') return 'UGX';
+  if (_spanishLocales.contains(lang)) return 'Pesos';
+  return 'UGX';
 }
 
 String formatAmount(
