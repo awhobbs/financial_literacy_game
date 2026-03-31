@@ -36,7 +36,7 @@ class OfflineSync {
 
     debugPrint("Sync: ${pending.length} pending items for $uid");
 
-    // Separate roundData actions for batching
+    // Separate roundData for batching; session/player summaries handled individually
     final roundDataActions = <Map<String, dynamic>>[];
     final otherActions = <Map<String, dynamic>>[];
 
@@ -110,16 +110,58 @@ class OfflineSync {
 
     final colRef = FirebaseFirestore.instance.collection(collection);
 
+    // playerSummaries uses FieldValue.increment for cumulative counters
+    if (collection == 'playerSummaries' && doc != null && doc.isNotEmpty) {
+      await _upsertPlayerSummary(colRef.doc(doc), data);
+      return;
+    }
+
     if (doc != null && doc.isNotEmpty) {
-      // Update or merge an existing document
-      await colRef.doc(doc).set(
-        data,
-        SetOptions(merge: true),
-      );
+      // Update or merge an existing document (e.g. sessionSummaries)
+      await colRef.doc(doc).set(data, SetOptions(merge: true));
     } else {
-      // Create a NEW Firestore document
+      // Create a NEW Firestore document (e.g. roundData)
       await colRef.add(data);
     }
+  }
+
+  /// Upserts playerSummaries/{uid} — converts _increment* fields to FieldValue.increment
+  static Future<void> _upsertPlayerSummary(
+    DocumentReference ref,
+    Map<String, dynamic> data,
+  ) async {
+    final Map<String, dynamic> writeData = {};
+
+    // Pass-through scalar fields
+    for (final entry in data.entries) {
+      if (!entry.key.startsWith('_increment')) {
+        writeData[entry.key] = entry.value;
+      }
+    }
+
+    // Convert _increment* to FieldValue.increment
+    if (data.containsKey('_incrementSessions'))
+      writeData['totalSessions']    = FieldValue.increment(data['_incrementSessions'] as int);
+    if (data.containsKey('_incrementRounds'))
+      writeData['totalRounds']      = FieldValue.increment(data['_incrementRounds'] as int);
+    if (data.containsKey('_incrementDurationMs'))
+      writeData['totalDurationMs']  = FieldValue.increment(data['_incrementDurationMs'] as int);
+    if (data.containsKey('_incrementBuyCash'))
+      writeData['totalBuyCash']     = FieldValue.increment(data['_incrementBuyCash'] as int);
+    if (data.containsKey('_incrementLoan'))
+      writeData['totalLoan']        = FieldValue.increment(data['_incrementLoan'] as int);
+    if (data.containsKey('_incrementDontBuy'))
+      writeData['totalDontBuy']     = FieldValue.increment(data['_incrementDontBuy'] as int);
+    if (data.containsKey('_incrementOptimal'))
+      writeData['totalOptimal']     = FieldValue.increment(data['_incrementOptimal'] as int);
+    if (data.containsKey('_incrementSuboptimal'))
+      writeData['totalSuboptimal']  = FieldValue.increment(data['_incrementSuboptimal'] as int);
+    if (data.containsKey('_incrementPoor'))
+      writeData['totalPoor']        = FieldValue.increment(data['_incrementPoor'] as int);
+    if (data.containsKey('_incrementRushing'))
+      writeData['totalRushingRounds'] = FieldValue.increment(data['_incrementRushing'] as int);
+
+    await ref.set(writeData, SetOptions(merge: true));
   }
 
   /// Check if currently syncing

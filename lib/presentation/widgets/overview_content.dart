@@ -4,6 +4,7 @@ import 'package:financial_literacy_game/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '/domain/utils/utils.dart';
+import '/domain/utils/intl_fallback.dart';
 import '../../config/color_palette.dart';
 import '../../config/constants.dart';
 import '../../domain/game_data_notifier.dart';
@@ -97,7 +98,13 @@ class OverviewTileContent extends ConsumerWidget {
           child: Align(
             alignment: Alignment.bottomRight,
             child: AutoSizeText(
-              AppLocalizations.of(context)!.cashValue(value.toStringAsFixed(2)),
+              AppLocalizations.of(context)!.cashValue(
+                formatAmount(
+                  value,
+                  Localizations.localeOf(context).toString(),
+                  currency: currencyForLocale(Localizations.localeOf(context).toString()),
+                ),
+              ),
               maxLines: 1,
               group: group,
               style: TextStyle(

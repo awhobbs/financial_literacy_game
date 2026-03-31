@@ -23,18 +23,21 @@ class _WelcomeBackDialogState extends ConsumerState<WelcomeBackDialog> {
   Widget build(BuildContext context) {
     // get current person from game data
     Person person = ref.read(gameDataNotifierProvider).person;
+    final String displayFirst =
+        (person.firstName?.isNotEmpty == true) ? person.firstName! : (person.uid ?? '');
+    final String displayLast =
+        (person.lastName?.isNotEmpty == true) ? person.lastName! : '';
     return Stack(
       children: [
         MenuDialog(
           showCloseButton: false,
-          // welcomes back user with first and last name
           title: AppLocalizations.of(context)!.welcomeBack(
-              person.firstName!.capitalize(), person.lastName!.capitalize()),
+              displayFirst.capitalize(), displayLast.capitalize()),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                AppLocalizations.of(context)!.sameUser(person.firstName!),
+                AppLocalizations.of(context)!.sameUser(displayFirst),
               ),
               const SizedBox(height: 10.0),
               if (ref.read(gameDataNotifierProvider).levelId != 0)

@@ -36,6 +36,7 @@ class GameAppBar extends ConsumerWidget implements PreferredSizeWidget {
         ),
       ),
       actions: [
+        // Settings button
         IconButton(
           onPressed: () {
             showDialog(

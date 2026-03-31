@@ -5,6 +5,7 @@ import 'offline_storage.dart';
 class OfflineQueue {
   final String uid;
 
+
   OfflineQueue(this.uid) {
     // Ensure correct Hive queue box is opened for this UID
     OfflineStorage.setActiveUID(uid);
@@ -24,7 +25,8 @@ class OfflineQueue {
 
   /// Clear actions after successful sync
   Future<void> clear() async {
-    await OfflineStorage.clearQueue();
+    await OfflineStorage.
+    clearQueue();
   }
 }
 

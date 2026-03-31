@@ -1,4 +1,6 @@
 
+String currencyForLocale(String localeCode) => 'UGX';
+
 String formatAmount(
     double value,
     String locale, {

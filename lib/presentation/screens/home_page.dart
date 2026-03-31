@@ -147,6 +147,8 @@ class _HomepageState extends ConsumerState<Homepage> with WidgetsBindingObserver
         "period": gameData.period,
         "locale": gameData.locale.languageCode,
       });
+      // Checkpoint: queue session summary so data isn't lost if app is killed
+      ref.read(gameDataNotifierProvider.notifier).checkpointSessionSummary();
       debugPrint("Game state saved successfully");
     } catch (e) {
       debugPrint("Failed to save game state: $e");

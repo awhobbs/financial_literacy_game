@@ -88,12 +88,12 @@ class L10n {
   /// Simple currency conversion (tweak as needed)
   static double getConversionRate(Locale locale) {
     switch (locale.languageCode) {
-      case 'en': return 1;
+      case 'en': return 4000;
       case 'lg': return 4000;
-      case 'kn': return 1000;
+      case 'kn': return 4000;
       case 'nyn': return 4000;
       case 'ach': return 4000;
-      case 'es': return 1;
+      case 'es': return 4000;
       default: return 1;
     }
   }

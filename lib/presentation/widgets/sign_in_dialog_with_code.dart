@@ -3,7 +3,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:financial_literacy_game/l10n/app_localizations.dart';
 
-import '../../config/color_palette.dart';
 import '../../domain/concepts/person.dart';
 import '../../domain/utils/database.dart';
 import '../../domain/utils/utils.dart';
@@ -14,7 +13,6 @@ import '../../offline/offline_sync.dart';
 import '../../offline/uid_cache.dart';
 
 import 'is_this_you_dialog.dart';
-import 'sign_in_with_name_dialog.dart';
 import 'menu_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -128,19 +126,6 @@ class _SignInDialogNewState extends ConsumerState<SignInDialogNew> {
             ],
           ),
           actions: [
-            // Name-login fallback
-            ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                showDialog(
-                  context: context,
-                  barrierDismissible: false,
-                  builder: (_) => const SignInWithNameDialog(),
-                );
-              },
-              child: Text(AppLocalizations.of(context)!.noCodeButton),
-            ),
-
             ElevatedButton(
               onPressed: isProcessing
                   ? null

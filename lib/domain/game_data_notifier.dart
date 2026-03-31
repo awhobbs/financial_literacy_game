@@ -22,6 +22,7 @@ import 'utils/device_and_personal_data.dart';
 
 import '../../offline/offline_storage.dart';
 import '../../offline/offline_queue.dart';
+import 'analytics/session_analytics.dart';
 
 final gameDataNotifierProvider =
 StateNotifierProvider<GameDataNotifier, GameData>(
@@ -37,6 +38,9 @@ class GameDataNotifier extends StateNotifier<GameData> {
   double _lastSavingsRate = 0.0;
   double _lastLoanInterestRate = 0.0;
   bool _lastAssetDied = false;
+
+  // Session-level accumulator (reset on each new session)
+  SessionAccumulator? _sessionAccumulator;
 
   GameDataNotifier()
       : super(
@@ -89,6 +93,11 @@ class GameDataNotifier extends StateNotifier<GameData> {
   void startSession() {
     _sessionId = DateTime.now().millisecondsSinceEpoch.toString();
     _currentRoundNumber = 0;
+    _sessionAccumulator = SessionAccumulator(
+      uid: state.person.uid ?? 'UNKNOWN',
+      sessionId: _sessionId!,
+      startedAt: DateTime.now(),
+    );
     debugPrint("Session started: $_sessionId");
   }
 
@@ -280,7 +289,18 @@ class GameDataNotifier extends StateNotifier<GameData> {
       savingsRate: _lastSavingsRate,
     );
 
-    // Create RoundData
+    // Compute speed flag for this round
+    final speedFlag = SpeedFlag.fromMs(decisionTimeMs);
+
+    // Feed session accumulator
+    _sessionAccumulator?.recordRound(
+      decisionTimeMs: decisionTimeMs,
+      decision: decisionStr,
+      decisionQuality: quality.name,
+      levelId: state.levelId,
+    );
+
+    // Create RoundData (with speedFlag added)
     final roundData = RoundData(
       uid: state.person.uid ?? 'UNKNOWN',
       sessionId: _sessionId ?? DateTime.now().millisecondsSinceEpoch.toString(),
@@ -296,6 +316,7 @@ class GameDataNotifier extends StateNotifier<GameData> {
       conceptsTested: concepts,
       decisionQuality: quality,
       assetDied: _lastAssetDied,
+      speedFlag: speedFlag,
     );
 
     // Queue for offline sync
@@ -303,7 +324,7 @@ class GameDataNotifier extends StateNotifier<GameData> {
     final queue = OfflineQueue(uid);
     await queue.add(roundData.toQueueAction());
 
-    debugPrint("Round $currentRoundNumber queued for sync");
+    debugPrint("Round $currentRoundNumber queued for sync [$speedFlag, ${decisionTimeMs}ms]");
   }
 
   // ----------------------------------------------------------
@@ -457,9 +478,35 @@ class GameDataNotifier extends StateNotifier<GameData> {
   }
 
   // ----------------------------------------------------------
+  // QUEUE SESSION SUMMARY (call before resetting session)
+  // ----------------------------------------------------------
+
+  /// Public checkpoint — call on app background to preserve in-progress data
+  Future<void> checkpointSessionSummary() => _queueSessionSummary();
+
+  Future<void> _queueSessionSummary() async {
+    if (_sessionAccumulator == null) return;
+    // Only write summary if at least one round was played
+    if (_sessionAccumulator!.roundCount == 0) return;
+
+    final summary = _sessionAccumulator!.build();
+    final uid = state.person.uid ?? 'UNKNOWN';
+    final queue = OfflineQueue(uid);
+
+    await queue.add(summary.toQueueAction());
+    await queue.add(summary.toPlayerSummaryQueueAction());
+
+    debugPrint("Session summary queued: ${summary.roundCount} rounds, "
+        "${summary.durationFlag}, speed: ${summary.overallSpeedPattern}");
+  }
+
+  // ----------------------------------------------------------
   // RESET GAME
   // ----------------------------------------------------------
   void resetGame() {
+    // Write session summary for the session that is ending
+    _queueSessionSummary();
+
     state = GameData(
       person: state.person,
       locale: state.locale,

@@ -22,12 +22,16 @@ CollectionReference uidListsCollectionRef = db.collection('uidLists');
 DocumentReference? currentGameSessionRef;
 DocumentReference? currentLevelDataRef;
 
+// CURRENT PLAYER UID (for including in round data)
+String? _currentPlayerUID;
+
 // ----------------------------------------------------------
 //  CLEAR SESSION STATE (important when switching users)
 // ----------------------------------------------------------
 void clearSessionState() {
   currentGameSessionRef = null;
   currentLevelDataRef = null;
+  _currentPlayerUID = null;
 }
 
 // ----------------------------------------------------------
@@ -78,6 +82,7 @@ void _createNewLevel({
     "decisions": [],
     "offeredAssets": [],
     "advanceTimes": [],
+    "uid": _currentPlayerUID ?? "",
   };
 
   final levels = currentGameSessionRef!.collection("levelData");
@@ -106,6 +111,9 @@ void restartLevelFirebase({
 // ----------------------------------------------------------
 Future<bool> reconnectToGameSession({required Person person}) async {
   clearSessionState();
+
+  // Store UID for including in round data
+  _currentPlayerUID = person.uid;
 
   currentGameSessionRef =
   await _findLatestGameSessionRef(person: person);
@@ -186,6 +194,9 @@ Future<void> startGameSession({
   required Person person,
   required double startingCash,
 }) async {
+  // Store UID for including in round data
+  _currentPlayerUID = person.uid;
+
   QuerySnapshot snap =
   await _findUserInFirestoreByUID(uid: person.uid ?? "");
 
@@ -197,6 +208,7 @@ Future<void> startGameSession({
   currentGameSessionRef = await sessions.add({
     "startedOn": DateTime.now(),
     "sessionStatus": Status.active.name,
+    "uid": person.uid ?? "",
   });
 
   _createNewLevel(level: 1, startingCash: startingCash);
@@ -274,6 +286,7 @@ void advancePeriodFirestore({
     "decisions": decisions,
     "offeredAssets": offered,
     "advanceTimes": times,
+    "uid": _currentPlayerUID ?? "",
   }, SetOptions(merge: true));
 }
 

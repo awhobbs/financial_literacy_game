@@ -33,8 +33,10 @@ Future<void> savePersonLocally(Person person) async {
   final prefs = await SharedPreferences.getInstance();
   if (person.firstName != null) prefs.setString('firstName', person.firstName!);
   if (person.lastName != null) prefs.setString('lastName', person.lastName!);
-  if (person.uid != null) prefs.setString('uid', person.uid!);
-  if (person.exists()) prefs.setBool('personExists', true);
+  if (person.uid != null) {
+    prefs.setString('uid', person.uid!);
+    prefs.setBool('personExists', true); // UID alone is sufficient
+  }
 }
 
 Future<bool> loadPerson({required WidgetRef ref}) async {
@@ -42,11 +44,11 @@ Future<bool> loadPerson({required WidgetRef ref}) async {
   final exists = prefs.getBool('personExists') ?? false;
   if (!exists) return false;
 
-  final firstName = prefs.getString('firstName');
-  final lastName = prefs.getString('lastName');
   final uid = prefs.getString('uid');
+  if (uid == null) return false;
 
-  if (firstName == null || lastName == null) return false;
+  final firstName = prefs.getString('firstName') ?? '';
+  final lastName = prefs.getString('lastName') ?? '';
 
   final person = Person(firstName: firstName, lastName: lastName, uid: uid);
   ref.read(gameDataNotifierProvider.notifier).setPerson(person);

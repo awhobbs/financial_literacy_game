@@ -100,6 +100,7 @@ class RoundData {
   final DateTime roundStartedAt;
   final DateTime decisionMadeAt;
   final int decisionTimeMs;
+  final String speedFlag; // "rushing" | "quick" | "normal" | "deliberate"
   final String decision; // "buyCash" | "loan" | "dontBuy"
   final StateSnapshot stateBefore;
   final StateSnapshot stateAfter;
@@ -116,6 +117,7 @@ class RoundData {
     required this.roundStartedAt,
     required this.decisionMadeAt,
     required this.decisionTimeMs,
+    required this.speedFlag,
     required this.decision,
     required this.stateBefore,
     required this.stateAfter,
@@ -135,6 +137,8 @@ class RoundData {
       'roundStartedAt': roundStartedAt.toIso8601String(),
       'decisionMadeAt': decisionMadeAt.toIso8601String(),
       'decisionTimeMs': decisionTimeMs,
+      'decisionTimeSec': (decisionTimeMs / 1000).toStringAsFixed(1),
+      'speedFlag': speedFlag,
       'decision': decision,
       'stateBefore': stateBefore.toMap(),
       'stateAfter': stateAfter.toMap(),
@@ -154,6 +158,7 @@ class RoundData {
       roundStartedAt: DateTime.parse(map['roundStartedAt'] as String),
       decisionMadeAt: DateTime.parse(map['decisionMadeAt'] as String),
       decisionTimeMs: map['decisionTimeMs'] as int,
+      speedFlag: map['speedFlag'] as String? ?? 'normal',
       decision: map['decision'] as String,
       stateBefore: StateSnapshot.fromMap(
         map['stateBefore'] as Map<String, dynamic>,
