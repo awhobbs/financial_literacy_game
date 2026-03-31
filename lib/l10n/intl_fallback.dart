@@ -11,14 +11,9 @@ String intlLocaleCode(String localeName) {
   return _unsupportedIntl.contains(code) ? 'en' : localeName;
 }
 
-String _currencyForLang(String lang) {
-  if (lang == 'es') return 'Pesos';
-  return 'UGX'; // English and all Uganda locales
-}
-
 String formatUgx(num amount, Locale l, {int decimalDigits = 0}) {
   final loc = intlLocaleFor(l);
-  final currency = _currencyForLang(l.languageCode);
+  const currency = 'UGX';
   try {
     return NumberFormat.currency(
       locale: loc,

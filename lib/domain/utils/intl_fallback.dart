@@ -1,13 +1,5 @@
 
-const _ugandaLocales = {'lg', 'kn', 'nyn', 'ach'};
-const _spanishLocales = {'es'};
-
-String currencyForLocale(String localeCode) {
-  final lang = localeCode.split('_').first;
-  if (_ugandaLocales.contains(lang) || lang == 'en') return 'UGX';
-  if (_spanishLocales.contains(lang)) return 'Pesos';
-  return 'UGX';
-}
+String currencyForLocale(String localeCode) => 'UGX';
 
 String formatAmount(
     double value,
