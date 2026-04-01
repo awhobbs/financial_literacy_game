@@ -85,8 +85,8 @@ class L10n {
     return all.any((loc) => loc.languageCode == l.languageCode);
   }
 
-  /// Currency conversion rate: all locales multiply by 4000
+  /// Currency conversion rate: 1:1 so values display in UGX as-is
   static double getConversionRate(Locale locale) {
-    return 4000;
+    return 1;
   }
 }
