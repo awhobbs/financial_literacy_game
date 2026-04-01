@@ -40,8 +40,7 @@ class _WelcomeBackDialogState extends ConsumerState<WelcomeBackDialog> {
                 AppLocalizations.of(context)!.sameUser(displayFirst),
               ),
               const SizedBox(height: 10.0),
-              if (ref.read(gameDataNotifierProvider).levelId != 0)
-                ElevatedButton(
+              ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     elevation: 5.0,
                     backgroundColor: ColorPalette().buttonBackground,
@@ -70,8 +69,6 @@ class _WelcomeBackDialogState extends ConsumerState<WelcomeBackDialog> {
                               .toStringAsFixed(0))
                       .capitalize()),
                 ),
-              if (ref.read(gameDataNotifierProvider).levelId != 0)
-                const SizedBox(width: 20),
               const SizedBox(height: 10.0),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
