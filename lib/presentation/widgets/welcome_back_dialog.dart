@@ -21,12 +21,14 @@ class _WelcomeBackDialogState extends ConsumerState<WelcomeBackDialog> {
   bool isClicked = false;
   @override
   Widget build(BuildContext context) {
-    // get current person from game data
+    // get current person and saved level
     Person person = ref.read(gameDataNotifierProvider).person;
+    final int savedLevelId = ref.read(gameDataNotifierProvider).levelId;
     final String displayFirst =
         (person.firstName?.isNotEmpty == true) ? person.firstName! : (person.uid ?? '');
     final String displayLast =
         (person.lastName?.isNotEmpty == true) ? person.lastName! : '';
+
     return Stack(
       children: [
         MenuDialog(
@@ -40,7 +42,10 @@ class _WelcomeBackDialogState extends ConsumerState<WelcomeBackDialog> {
                 AppLocalizations.of(context)!.sameUser(displayFirst),
               ),
               const SizedBox(height: 10.0),
-              ElevatedButton(
+
+              // ── CONTINUE button (only when at level 2+) ──────────────
+              if (savedLevelId > 0)
+                ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     elevation: 5.0,
                     backgroundColor: ColorPalette().buttonBackground,
@@ -49,27 +54,26 @@ class _WelcomeBackDialogState extends ConsumerState<WelcomeBackDialog> {
                   onPressed: isClicked
                       ? null
                       : () async {
-                          setState(() {
-                            isClicked = true;
-                          });
-                          bool couldReconnect =
-                              await reconnectToGameSession(person: person);
-                          if (!couldReconnect) {
-                            ref
-                                .read(gameDataNotifierProvider.notifier)
-                                .resetGame();
-                          }
+                          setState(() { isClicked = true; });
+                          // Restore saved cash + period from offline storage
+                          await ref
+                              .read(gameDataNotifierProvider.notifier)
+                              .restoreFullSavedState();
+                          // Reconnect Firebase session (best-effort; don't reset on failure)
+                          await reconnectToGameSession(person: person);
                           if (context.mounted) {
                             Navigator.of(context).pop();
                           }
                         },
-                  child: Text(AppLocalizations.of(context)!
-                      .startAtLevel(
-                          (ref.read(gameDataNotifierProvider).levelId + 1)
-                              .toStringAsFixed(0))
-                      .capitalize()),
+                  child: Text(
+                    'Continue from Level ${savedLevelId + 1}',
+                    style: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
                 ),
-              const SizedBox(height: 10.0),
+
+              if (savedLevelId > 0) const SizedBox(height: 10.0),
+
+              // ── RESTART button ────────────────────────────────────────
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   elevation: 5.0,
@@ -79,9 +83,7 @@ class _WelcomeBackDialogState extends ConsumerState<WelcomeBackDialog> {
                 onPressed: isClicked
                     ? null
                     : () async {
-                        setState(() {
-                          isClicked = true;
-                        });
+                        setState(() { isClicked = true; });
                         await endCurrentGameSession(
                             status: Status.abandoned, person: person);
                         ref.read(gameDataNotifierProvider.notifier).resetGame();
@@ -92,6 +94,7 @@ class _WelcomeBackDialogState extends ConsumerState<WelcomeBackDialog> {
                 child: Text(
                     AppLocalizations.of(context)!.restartGame.capitalize()),
               ),
+
               const SizedBox(height: 25.0),
               Text(
                 AppLocalizations.of(context)!
@@ -99,6 +102,8 @@ class _WelcomeBackDialogState extends ConsumerState<WelcomeBackDialog> {
                     .capitalize(),
               ),
               const SizedBox(height: 10.0),
+
+              // ── NOT ME button ─────────────────────────────────────────
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
                   elevation: 5.0,
@@ -108,9 +113,7 @@ class _WelcomeBackDialogState extends ConsumerState<WelcomeBackDialog> {
                 onPressed: isClicked
                     ? null
                     : () {
-                        setState(() {
-                          isClicked = true;
-                        });
+                        setState(() { isClicked = true; });
                         Navigator.of(context).pop();
                         showDialog(
                           barrierDismissible: false,

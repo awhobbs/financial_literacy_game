@@ -531,6 +531,23 @@ class GameDataNotifier extends StateNotifier<GameData> {
   }
 
   // ----------------------------------------------------------
+  // RESTORE FULL SAVED STATE (cash + period from offline storage)
+  // ----------------------------------------------------------
+  Future<void> restoreFullSavedState() async {
+    final saved = await OfflineStorage.loadSimpleState();
+    final savedCash = saved["cash"] as double?;
+    final savedPeriod = saved["period"] as int?;
+
+    if (savedCash != null) {
+      state = state.copyWith(cash: savedCash);
+    }
+    if (savedPeriod != null) {
+      state = state.copyWith(period: savedPeriod);
+    }
+    debugPrint("Full saved state restored: cash=$savedCash, period=$savedPeriod");
+  }
+
+  // ----------------------------------------------------------
   // RESTORE SESSION (for resume)
   // ----------------------------------------------------------
   Future<void> restoreSession() async {
