@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class UIDCache {
   static const String _cacheKey = 'uid_cache';
   static const String _cacheVersionKey = 'uid_cache_version';
-  static const int _currentVersion = 1;
+  static const int _currentVersion = 2;
 
   // ignore: prefer_final_fields
   static Set<String> _memoryCache = {};
