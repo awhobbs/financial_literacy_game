@@ -25,8 +25,7 @@ class OfflineQueue {
 
   /// Clear actions after successful sync
   Future<void> clear() async {
-    await OfflineStorage.
-    clearQueue();
+    await OfflineStorage.clearQueue();
   }
 }
 
