@@ -30,13 +30,10 @@ class LevelInfoCard extends ConsumerWidget {
     final l10n = AppLocalizations.of(context)!;
     final loc = ref.watch(gameDataNotifierProvider).locale;
 
-    final convertedCurrentCash =
-    ref.read(gameDataNotifierProvider.notifier).convertAmount(currentCash);
-    final convertedNextLevelCash =
-    ref.read(gameDataNotifierProvider.notifier).convertAmount(nextLevelCash);
-    final convertedStartingCash = ref
-        .read(gameDataNotifierProvider.notifier)
-        .convertAmount(levels[levelId].startingCash);
+    final conversionRate = ref.watch(gameDataNotifierProvider).conversionRate;
+    final convertedCurrentCash = conversionRate * currentCash;
+    final convertedNextLevelCash = conversionRate * nextLevelCash;
+    final convertedStartingCash = conversionRate * levels[levelId].startingCash;
 
     return Stack(
       children: [
@@ -52,33 +49,46 @@ class LevelInfoCard extends ConsumerWidget {
             children: [
               // Don't pass a number into a localized formatter for LG/ACH:
               // format locally and concatenate to avoid intl "Invalid locale".
-              Text(
-                '${l10n.cashGoal}: ${formatUgx(convertedNextLevelCash, loc)}',
-                style: TextStyle(
-                  fontSize: 18.0,
-                  fontWeight: FontWeight.bold,
-                  color: ColorPalette().darkText,
-                ),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    '${l10n.cashGoal}: ${formatUgx(convertedNextLevelCash, loc)}',
+                    style: TextStyle(
+                      fontSize: 18.0,
+                      fontWeight: FontWeight.bold,
+                      color: ColorPalette().darkText,
+                    ),
+                  ),
+                  Text(
+                    formatUgx(convertedCurrentCash, loc),
+                    style: TextStyle(
+                      fontSize: 16.0,
+                      fontWeight: FontWeight.bold,
+                      color: ColorPalette().cashIndicator,
+                    ),
+                  ),
+                ],
               ),
               const SizedBox(height: 7.5),
               Row(
                 children: [
                   Text(
                     formatUgx(0, loc),
-                    style: const TextStyle(fontSize: 16.0),
+                    style: const TextStyle(fontSize: 13.0),
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: CashIndicator(
                       currentCash: convertedCurrentCash,
                       cashGoal: convertedNextLevelCash,
-                      startingCash: convertedStartingCash, // bar starts at 0 when cash == startingCash
+                      startingCash: convertedStartingCash,
                     ),
                   ),
                   const SizedBox(width: 8),
                   Text(
                     formatUgx(convertedNextLevelCash, loc),
-                    style: const TextStyle(fontSize: 16.0),
+                    style: const TextStyle(fontSize: 13.0),
                   ),
                 ],
               ),
