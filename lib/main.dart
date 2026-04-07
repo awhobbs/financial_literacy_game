@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import 'firebase_options.dart';
+import 'firebase_options_tester.dart';
 import 'config/themes.dart';
 import 'config/constants.dart';
 import 'l10n/l10n.dart';
@@ -15,8 +16,11 @@ import 'presentation/screens/home_page.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  const flavor = String.fromEnvironment('FLAVOR', defaultValue: 'production');
   await Firebase.initializeApp(
-    options: DefaultFirebaseOptions.currentPlatform,
+    options: flavor == 'tester'
+        ? TesterFirebaseOptions.currentPlatform
+        : DefaultFirebaseOptions.currentPlatform,
   );
 
   // Session data is preserved across launches so players can resume their progress
