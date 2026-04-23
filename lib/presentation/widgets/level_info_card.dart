@@ -61,7 +61,7 @@ class LevelInfoCard extends ConsumerWidget {
                     ),
                   ),
                   Text(
-                    formatUgx(convertedCurrentCash, loc),
+                    formatUgx(convertedCurrentCash.clamp(0.0, convertedNextLevelCash), loc),
                     style: TextStyle(
                       fontSize: 16.0,
                       fontWeight: FontWeight.bold,

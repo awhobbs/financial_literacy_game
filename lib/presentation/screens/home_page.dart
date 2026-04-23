@@ -180,38 +180,75 @@ class _HomepageState extends ConsumerState<Homepage> with WidgetsBindingObserver
             child: SingleChildScrollView(
               child: Center(
                 child: ConstrainedBox(
-                  constraints:
-                  const BoxConstraints(maxWidth: playAreaMaxWidth),
+                  constraints: const BoxConstraints(maxWidth: playAreaMaxWidth),
                   child: Padding(
                     padding: const EdgeInsets.all(15),
-                    child: Column(
-                      children: [
-                        LevelInfoCard(
-                          currentCash:
-                          ref.watch(gameDataNotifierProvider).cash,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        // Two-column layout on tablets / wide screens
+                        final isWide = constraints.maxWidth >= 700;
+                        final gap = isWide ? 16.0 : 10.0;
+
+                        final levelCard = LevelInfoCard(
+                          currentCash: ref.watch(gameDataNotifierProvider).cash,
                           levelId: levelId,
                           nextLevelCash: levels[levelId].cashGoal,
-                        ),
-                        const SizedBox(height: 10),
-                        SectionCard(
-                          title:
-                          AppLocalizations.of(context)!.overview.toUpperCase(),
+                        );
+                        final overviewSection = SectionCard(
+                          title: AppLocalizations.of(context)!.overview.toUpperCase(),
                           content: const OverviewContent(),
-                        ),
-                        const SizedBox(height: 10),
-                        SectionCard(
-                          title:
-                          AppLocalizations.of(context)!.assets.toUpperCase(),
+                        );
+                        final assetsSection = SectionCard(
+                          title: AppLocalizations.of(context)!.assets.toUpperCase(),
                           content: const AssetContent(),
-                        ),
-                        const SizedBox(height: 10),
-                        if (levelId > 1)
-                          SectionCard(
-                            title: AppLocalizations.of(context)!.loan(2)
-                                .toUpperCase(),
-                            content: const LoanContent(),
-                          ),
-                      ],
+                        );
+                        final loanSection = levelId > 1
+                            ? SectionCard(
+                                title: AppLocalizations.of(context)!.loan(2).toUpperCase(),
+                                content: const LoanContent(),
+                              )
+                            : null;
+
+                        if (isWide) {
+                          return Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Left: progress + financial overview + loans
+                              Expanded(
+                                child: Column(
+                                  children: [
+                                    levelCard,
+                                    SizedBox(height: gap),
+                                    overviewSection,
+                                    if (loanSection != null) ...[
+                                      SizedBox(height: gap),
+                                      loanSection,
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              SizedBox(width: gap),
+                              // Right: animals / assets
+                              Expanded(child: assetsSection),
+                            ],
+                          );
+                        }
+
+                        // Narrow / phone: single column
+                        return Column(
+                          children: [
+                            levelCard,
+                            SizedBox(height: gap),
+                            overviewSection,
+                            SizedBox(height: gap),
+                            assetsSection,
+                            if (loanSection != null) ...[
+                              SizedBox(height: gap),
+                              loanSection,
+                            ],
+                          ],
+                        );
+                      },
                     ),
                   ),
                 ),

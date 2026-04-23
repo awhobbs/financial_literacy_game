@@ -48,14 +48,15 @@ class _SignInDialogNewState extends ConsumerState<SignInDialogNew> {
       return null;
     }
 
-    // Try Firestore first
+    // Try Firestore first, with a timeout so offline mode falls through quickly
     try {
-      final person = await searchUserbyUIDInFirestore(uid);
+      final person = await searchUserbyUIDInFirestore(uid)
+          .timeout(const Duration(seconds: 5));
       if (person != null) {
         return person;
       }
     } catch (e) {
-      debugPrint("Firestore lookup failed: $e");
+      debugPrint("Firestore lookup failed or timed out: $e");
       // Fall through to offline lookup
     }
 
@@ -83,9 +84,16 @@ class _SignInDialogNewState extends ConsumerState<SignInDialogNew> {
     // 1. Clear saved state
     await OfflineStorage.clearSimpleState();
 
-    // 2. Clear prefs
+    // 2. Remove session-specific keys only — preserve languageCode and
+    //    per-UID level cache (nextLevel_*) so offline tablets can restore
+    //    returning participants to the correct level on week 2+.
     final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    for (final key in const [
+      'uid', 'personExists', 'firstName', 'lastName',
+      'lastRoundNumber', 'lastSessionId', 'lastPlayedLevelID',
+    ]) {
+      await prefs.remove(key);
+    }
 
     // 3. Reset game
     ref.read(gameDataNotifierProvider.notifier).resetGame();

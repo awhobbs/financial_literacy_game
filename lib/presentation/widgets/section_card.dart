@@ -12,24 +12,29 @@ class SectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final w = MediaQuery.of(context).size.width;
+    final titleSize  = w >= 700 ? 24.0 : 20.0;
+    final cardPad    = w >= 700 ? 22.0 : 16.0;
+
     return Container(
       decoration: BoxDecoration(
         color: ColorPalette().backgroundSectionCard,
         borderRadius: BorderRadius.circular(22.0),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(18.0),
+        padding: EdgeInsets.all(cardPad),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               title,
               style: TextStyle(
-                fontSize: 20.0,
+                fontSize: titleSize,
+                fontWeight: FontWeight.bold,
                 color: ColorPalette().darkText,
               ),
             ),
-            const SizedBox(height: 10),
+            const SizedBox(height: 12),
             content,
           ],
         ),

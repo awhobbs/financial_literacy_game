@@ -7,7 +7,6 @@ import 'offline_queue.dart';
 /// Handles background syncing of offline actions to Firestore
 class OfflineSync {
   static Timer? _timer;
-  static const int _batchLimit = 500; // Firestore batch limit
 
   /// Starts periodic sync every 10 seconds for the given UID
   static void startWorker(String uid) {
@@ -36,25 +35,45 @@ class OfflineSync {
 
     debugPrint("Sync: ${pending.length} pending items for $uid");
 
-    // Separate roundData for batching; session/player summaries handled individually
-    final roundDataActions = <Map<String, dynamic>>[];
-    final otherActions = <Map<String, dynamic>>[];
+    // Separate by type
+    final subcollectionActions       = <Map<String, dynamic>>[];
+    final participantDecisionActions = <Map<String, dynamic>>[];
+    final legacyGamePlayActions      = <Map<String, dynamic>>[];
+    final otherActions               = <Map<String, dynamic>>[];
 
     for (final action in pending) {
-      if (action["collection"] == "roundData") {
-        roundDataActions.add(action);
+      if (action['actionType'] == 'participantDecision') {
+        // Flat decision map: participantDecisions/{uid}
+        participantDecisionActions.add(action);
+      } else if (action.containsKey('subcollection')) {
+        // Detailed rounds subcollection: participants/{uid}/rounds/{roundKey}
+        subcollectionActions.add(action);
+      } else if (action["collection"] == "gamePlay") {
+        // Legacy round data written before subcollection migration
+        legacyGamePlayActions.add(action);
       } else {
+        // sessions, participants (non-subcollection), etc.
         otherActions.add(action);
       }
     }
 
     try {
-      // Handle roundData with batching
-      if (roundDataActions.isNotEmpty) {
-        await _syncRoundDataBatch(roundDataActions);
+      // Write flat decision documents (researcher-friendly view)
+      if (participantDecisionActions.isNotEmpty) {
+        await _syncParticipantDecisions(participantDecisionActions);
       }
 
-      // Handle other actions individually
+      // Write subcollection documents (detailed per-round data)
+      if (subcollectionActions.isNotEmpty) {
+        await _syncSubcollectionBatch(subcollectionActions);
+      }
+
+      // Migrate any legacy gamePlay actions (batched dot-notation update)
+      if (legacyGamePlayActions.isNotEmpty) {
+        await _syncLegacyGamePlayBatch(legacyGamePlayActions);
+      }
+
+      // Scalar / summary documents
       for (final action in otherActions) {
         await _sendToFirestore(action);
       }
@@ -68,96 +87,182 @@ class OfflineSync {
     }
   }
 
-  /// Batch sync roundData entries for efficiency
-  static Future<void> _syncRoundDataBatch(
+  // ------------------------------------------------------------------
+  // PARTICIPANT DECISIONS SYNC
+  // Writes all per-round decisions as flat fields on participantDecisions/{uid}.
+  // Uses merge:true so each sync call only adds new round keys without
+  // overwriting existing ones.
+  // ------------------------------------------------------------------
+  static Future<void> _syncParticipantDecisions(
       List<Map<String, dynamic>> actions) async {
+    // Group by uid (doc)
+    final Map<String, Map<String, dynamic>> byUid = {};
+
+    for (final action in actions) {
+      final uid      = action['doc']      as String;
+      final roundKey = action['roundKey'] as String;
+      final data     = Map<String, dynamic>.from(action['data'] as Map);
+      data['syncedAt'] = FieldValue.serverTimestamp();
+
+      byUid.putIfAbsent(uid, () => {'uid': uid})[roundKey] = data;
+    }
+
     final db = FirebaseFirestore.instance;
-    final roundDataRef = db.collection('roundData');
-
-    // Process in batches of 500 (Firestore limit)
-    for (var i = 0; i < actions.length; i += _batchLimit) {
-      final batchEnd =
-          (i + _batchLimit < actions.length) ? i + _batchLimit : actions.length;
-      final batchActions = actions.sublist(i, batchEnd);
-
-      final batch = db.batch();
-
-      for (final action in batchActions) {
-        final data = Map<String, dynamic>.from(action["data"]);
-
-        // Add server timestamp for sync tracking
-        data['syncedAt'] = FieldValue.serverTimestamp();
-
-        // Create new document with auto-generated ID
-        final docRef = roundDataRef.doc();
-        batch.set(docRef, data);
-      }
-
-      await batch.commit();
+    for (final entry in byUid.entries) {
+      final uid        = entry.key;
+      final updateData = entry.value;
+      await db
+          .collection('participantDecisions')
+          .doc(uid)
+          .set(updateData, SetOptions(merge: true));
       debugPrint(
-          "Batch committed: ${batchActions.length} roundData entries (batch ${(i ~/ _batchLimit) + 1})");
+          'participantDecisions/$uid: ${updateData.length - 1} round(s) written');
     }
   }
 
-  /// Writes one queued offline action to Firestore
+  // ------------------------------------------------------------------
+  // SUBCOLLECTION SYNC
+  // Each action has: collection, doc, subcollection, subdoc, data
+  // Writes: {collection}/{doc}/{subcollection}/{subdoc}
+  // ------------------------------------------------------------------
+  static Future<void> _syncSubcollectionBatch(
+      List<Map<String, dynamic>> actions) async {
+    // Group by parent collection+doc to batch per-parent
+    final Map<String, List<Map<String, dynamic>>> byParent = {};
+    for (final action in actions) {
+      final parentKey = '${action["collection"]}/${action["doc"]}';
+      byParent.putIfAbsent(parentKey, () => []).add(action);
+    }
+
+    final db = FirebaseFirestore.instance;
+
+    for (final entry in byParent.entries) {
+      final actions = entry.value;
+      if (actions.isEmpty) continue;
+
+      final firstAction = actions.first;
+      final parentCol  = firstAction["collection"] as String;
+      final parentDoc  = firstAction["doc"]         as String;
+      final subCol     = firstAction["subcollection"] as String;
+
+      final parentRef = db.collection(parentCol).doc(parentDoc);
+
+      // Ensure parent document exists (no-op if already present)
+      await parentRef.set({'uid': parentDoc}, SetOptions(merge: true));
+
+      // Use a WriteBatch for the subcollection documents
+      final batch = db.batch();
+      for (final action in actions) {
+        final subdoc  = action["subdoc"] as String;
+        final data    = Map<String, dynamic>.from(action["data"] as Map);
+        data['syncedAt'] = FieldValue.serverTimestamp();
+
+        final subRef = parentRef.collection(subCol).doc(subdoc);
+        batch.set(subRef, data);
+      }
+      await batch.commit();
+
+      debugPrint(
+          "$parentCol/$parentDoc/$subCol: ${actions.length} doc(s) written");
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // LEGACY GAMEPLAY SYNC  (pre-subcollection format)
+  // Kept so any items already in the queue before this update still sync.
+  // ------------------------------------------------------------------
+  static Future<void> _syncLegacyGamePlayBatch(
+      List<Map<String, dynamic>> actions) async {
+    final gamePlayRef = FirebaseFirestore.instance.collection('gamePlay');
+
+    final Map<String, List<Map<String, dynamic>>> byUid = {};
+    for (final action in actions) {
+      final uid = (action["doc"] as String?) ?? 'UNKNOWN';
+      byUid.putIfAbsent(uid, () => []).add(
+        Map<String, dynamic>.from(action["data"] as Map),
+      );
+    }
+
+    for (final entry in byUid.entries) {
+      final uid    = entry.key;
+      final rounds = entry.value;
+      final ref    = gamePlayRef.doc(uid);
+
+      await ref.set({'uid': uid}, SetOptions(merge: true));
+
+      final updateMap = <String, dynamic>{
+        'syncedAt': FieldValue.serverTimestamp(),
+      };
+      for (final round in rounds) {
+        final levelId   = round['levelId']     as int;
+        final sessionId = round['sessionId']   as String;
+        final roundNum  = round['roundNumber'] as int;
+        updateMap['level_$levelId.${sessionId}_round_$roundNum'] = round;
+      }
+      await ref.update(updateMap);
+
+      debugPrint("(legacy) gamePlay/$uid updated: ${rounds.length} round(s)");
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // SINGLE DOCUMENT WRITE  (sessionSummaries, playerSummaries)
+  // ------------------------------------------------------------------
   static Future<void> _sendToFirestore(Map<String, dynamic> action) async {
     final String collection = action["collection"];
     final Map<String, dynamic> data = Map<String, dynamic>.from(action["data"]);
     final String? doc = action["doc"];
 
-    // Add server timestamp
     data['syncedAt'] = FieldValue.serverTimestamp();
 
     final colRef = FirebaseFirestore.instance.collection(collection);
 
-    // playerSummaries uses FieldValue.increment for cumulative counters
-    if (collection == 'playerSummaries' && doc != null && doc.isNotEmpty) {
+    if ((collection == 'participants' || collection == 'playerSummaries') &&
+        doc != null && doc.isNotEmpty) {
       await _upsertPlayerSummary(colRef.doc(doc), data);
       return;
     }
 
     if (doc != null && doc.isNotEmpty) {
-      // Update or merge an existing document (e.g. sessionSummaries)
       await colRef.doc(doc).set(data, SetOptions(merge: true));
     } else {
-      // Create a NEW Firestore document (e.g. roundData)
       await colRef.add(data);
     }
   }
 
-  /// Upserts playerSummaries/{uid} — converts _increment* fields to FieldValue.increment
+  // ------------------------------------------------------------------
+  // PLAYER SUMMARY UPSERT  (incremental counters via FieldValue)
+  // ------------------------------------------------------------------
   static Future<void> _upsertPlayerSummary(
     DocumentReference ref,
     Map<String, dynamic> data,
   ) async {
     final Map<String, dynamic> writeData = {};
 
-    // Pass-through scalar fields
     for (final entry in data.entries) {
       if (!entry.key.startsWith('_increment')) {
         writeData[entry.key] = entry.value;
       }
     }
 
-    // Convert _increment* to FieldValue.increment
     if (data.containsKey('_incrementSessions'))
-      writeData['totalSessions']    = FieldValue.increment(data['_incrementSessions'] as int);
+      writeData['totalSessions']      = FieldValue.increment(data['_incrementSessions'] as int);
     if (data.containsKey('_incrementRounds'))
-      writeData['totalRounds']      = FieldValue.increment(data['_incrementRounds'] as int);
+      writeData['totalRounds']        = FieldValue.increment(data['_incrementRounds'] as int);
     if (data.containsKey('_incrementDurationMs'))
-      writeData['totalDurationMs']  = FieldValue.increment(data['_incrementDurationMs'] as int);
+      writeData['totalDurationMs']    = FieldValue.increment(data['_incrementDurationMs'] as int);
     if (data.containsKey('_incrementBuyCash'))
-      writeData['totalBuyCash']     = FieldValue.increment(data['_incrementBuyCash'] as int);
+      writeData['totalBuyCash']       = FieldValue.increment(data['_incrementBuyCash'] as int);
     if (data.containsKey('_incrementLoan'))
-      writeData['totalLoan']        = FieldValue.increment(data['_incrementLoan'] as int);
+      writeData['totalLoan']          = FieldValue.increment(data['_incrementLoan'] as int);
     if (data.containsKey('_incrementDontBuy'))
-      writeData['totalDontBuy']     = FieldValue.increment(data['_incrementDontBuy'] as int);
+      writeData['totalDontBuy']       = FieldValue.increment(data['_incrementDontBuy'] as int);
     if (data.containsKey('_incrementOptimal'))
-      writeData['totalOptimal']     = FieldValue.increment(data['_incrementOptimal'] as int);
+      writeData['totalOptimal']       = FieldValue.increment(data['_incrementOptimal'] as int);
     if (data.containsKey('_incrementSuboptimal'))
-      writeData['totalSuboptimal']  = FieldValue.increment(data['_incrementSuboptimal'] as int);
+      writeData['totalSuboptimal']    = FieldValue.increment(data['_incrementSuboptimal'] as int);
     if (data.containsKey('_incrementPoor'))
-      writeData['totalPoor']        = FieldValue.increment(data['_incrementPoor'] as int);
+      writeData['totalPoor']          = FieldValue.increment(data['_incrementPoor'] as int);
     if (data.containsKey('_incrementRushing'))
       writeData['totalRushingRounds'] = FieldValue.increment(data['_incrementRushing'] as int);
 
@@ -167,7 +272,3 @@ class OfflineSync {
   /// Check if currently syncing
   static bool get isRunning => _timer != null && _timer!.isActive;
 }
-
-
-
-

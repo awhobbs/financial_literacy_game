@@ -20,7 +20,6 @@ import 'asset_carousel.dart';
 import 'cash_alert_dialog.dart';
 import 'lost_game_dialog.dart';
 import 'next_level_dialog.dart';
-import 'round_complete_dialog.dart';
 import 'won_game_dialog.dart';
 
 class InvestmentDialog extends StatefulWidget {
@@ -69,19 +68,9 @@ void checkNextLevelReached(WidgetRef ref, BuildContext context) {
   }
 }
 
-void checkRoundComplete(WidgetRef ref, BuildContext context) {
-  final state = ref.read(gameDataNotifierProvider);
-  if (!state.isBankrupt && !state.gameIsFinished && !state.currentLevelSolved) {
-    ref.read(gameDataNotifierProvider.notifier).showConfetti();
-    showDialog(
-      barrierDismissible: false,
-      context: context,
-      builder: (context) {
-        return RoundCompleteDialog(ref: ref);
-      },
-    );
-  }
-}
+// checkRoundComplete removed — no dialog should appear after every normal round.
+// Dialogs only appear on level complete (checkNextLevelReached),
+// game end (checkGameHasEnded), or bankruptcy (checkBankruptcy).
 
 class _InvestmentDialogState extends State<InvestmentDialog> {
   final AutoSizeGroup textGroup = AutoSizeGroup();
@@ -179,16 +168,18 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
     Asset selectedAsset = levelAssets[_selectedIndex];
 
     Future<bool> showNotEnoughCash() async {
-      return await showDialog(
+      if (!context.mounted) return false;
+      return await showDialog<bool>(
           context: context,
           barrierDismissible: false,
           builder: (context) {
             return const CashAlertDialog();
-          });
+          }) ?? false;
     }
 
     Future<bool> showAnimalDiedWarning(Asset asset) async {
-      return await showDialog(
+      if (!context.mounted) return false;
+      return await showDialog<bool>(
           context: context,
           barrierDismissible: false,
           builder: (context) {
@@ -205,7 +196,7 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
                 )
               ],
             );
-          });
+          }) ?? false;
     }
 
     final convertedCurrentCash = widget.ref
@@ -355,7 +346,6 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
                 checkBankruptcy(widget.ref, context);
                 checkGameHasEnded(widget.ref, context);
                 checkNextLevelReached(widget.ref, context);
-                checkRoundComplete(widget.ref, context);
               },
               child: Text(AppLocalizations.of(context)!.dontBuy),
             ),
@@ -382,7 +372,6 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
                       checkBankruptcy(widget.ref, context);
                       checkGameHasEnded(widget.ref, context);
                       checkNextLevelReached(widget.ref, context);
-                      checkRoundComplete(widget.ref, context);
                     }
                   }
                 },
@@ -406,7 +395,6 @@ class _InvestmentDialogState extends State<InvestmentDialog> {
                     checkBankruptcy(widget.ref, context);
                     checkGameHasEnded(widget.ref, context);
                     checkNextLevelReached(widget.ref, context);
-                    checkRoundComplete(widget.ref, context);
                   }
                 },
                 child: Text(AppLocalizations.of(context)!.borrow),

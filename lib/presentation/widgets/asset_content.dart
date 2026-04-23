@@ -103,8 +103,11 @@ class SmallAssetCard extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final cardAspect  = screenWidth >= 700 ? 0.80 : assetsAspectRatio;
+
     return AspectRatio(
-      aspectRatio: assetsAspectRatio,
+      aspectRatio: cardAspect,
       child: Container(
         decoration: BoxDecoration(
           color: ColorPalette().backgroundContentCard,
@@ -121,7 +124,7 @@ class SmallAssetCard extends ConsumerWidget {
                   textAlign: TextAlign.right,
                   style: TextStyle(
                     color: ColorPalette().lightText,
-                    fontSize: 50.0,
+                    fontSize: screenWidth >= 700 ? 70.0 : 50.0,
                   ),
                 ),
               ),

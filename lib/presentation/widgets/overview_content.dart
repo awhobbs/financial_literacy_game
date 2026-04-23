@@ -89,7 +89,8 @@ class OverviewTileContent extends ConsumerWidget {
         Text(
           title,
           style: TextStyle(
-            fontSize: 16.0,
+            fontSize: MediaQuery.of(context).size.width >= 700 ? 18.0 : 15.0,
+            fontWeight: FontWeight.w600,
             color: ColorPalette().lightText,
           ),
         ),

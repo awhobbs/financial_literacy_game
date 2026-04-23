@@ -13,6 +13,7 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   
+  cupertino_icons: ^1.0.8
   auto_size_text: ^3.0.0
   carousel_slider: ^5.1.1
   defer_pointer: ^0.0.2
@@ -53,4 +54,5 @@ flutter:
   assets:
     - assets/images/
     - uids/Uganda_Pilot_All_Regions.csv
+    - uids/uids_phase1.csv
 

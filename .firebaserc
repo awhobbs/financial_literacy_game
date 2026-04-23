@@ -1,6 +1,6 @@
 {
   "projects": {
-    "default": "finlitsim",
-    "tester": "ofinsen-dc06d"
+    "default": "ofinsen-dc06d",
+    "tester": "finlitsim"
   }
 }

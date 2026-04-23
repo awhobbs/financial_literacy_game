@@ -21,7 +21,6 @@ class _WelcomeBackDialogState extends ConsumerState<WelcomeBackDialog> {
   bool isClicked = false;
   @override
   Widget build(BuildContext context) {
-    // get current person and saved level
     Person person = ref.read(gameDataNotifierProvider).person;
     final int savedLevelId = ref.read(gameDataNotifierProvider).levelId;
     final String displayFirst =
@@ -43,8 +42,19 @@ class _WelcomeBackDialogState extends ConsumerState<WelcomeBackDialog> {
               ),
               const SizedBox(height: 10.0),
 
-              // ── CONTINUE button (only when at level 2+) ──────────────
-              if (savedLevelId > 0)
+              // ── NEXT LEVEL button (only when they have saved progress) ─
+              if (savedLevelId > 0) ...[
+                Text(
+                  'Your last session ended on Level $savedLevelId.\n'
+                  'Ready to start Level ${savedLevelId + 1}?',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: ColorPalette().darkText,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(height: 10.0),
                 ElevatedButton(
                   style: ElevatedButton.styleFrom(
                     elevation: 5.0,
@@ -55,23 +65,23 @@ class _WelcomeBackDialogState extends ConsumerState<WelcomeBackDialog> {
                       ? null
                       : () async {
                           setState(() { isClicked = true; });
-                          // Restore saved cash + period from offline storage
-                          await ref
-                              .read(gameDataNotifierProvider.notifier)
-                              .restoreFullSavedState();
-                          // Reconnect Firebase session (best-effort; don't reset on failure)
-                          await reconnectToGameSession(person: person);
+                          try {
+                            await reconnectToGameSession(person: person)
+                                .timeout(const Duration(seconds: 5));
+                          } catch (_) {
+                            // Offline — proceed anyway; data will sync later.
+                          }
                           if (context.mounted) {
                             Navigator.of(context).pop();
                           }
                         },
                   child: Text(
-                    'Continue from Level ${savedLevelId + 1}',
+                    'Start Level ${savedLevelId + 1}',
                     style: const TextStyle(fontWeight: FontWeight.bold),
                   ),
                 ),
-
-              if (savedLevelId > 0) const SizedBox(height: 10.0),
+                const SizedBox(height: 10.0),
+              ],
 
               // ── RESTART button ────────────────────────────────────────
               ElevatedButton(

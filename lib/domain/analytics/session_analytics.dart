@@ -121,19 +121,19 @@ class SessionSummary {
     };
   }
 
-  /// Queue action for `sessionSummaries` collection (doc = sessionId for idempotency)
+  /// Queue action for `sessions` collection (doc = sessionId for idempotency)
   Map<String, dynamic> toQueueAction() {
     return {
-      'collection': 'sessionSummaries',
+      'collection': 'sessions',
       'doc': sessionId,
       'data': toMap(),
     };
   }
 
-  /// Queue action to upsert `playerSummaries/{uid}` with this session's stats
+  /// Queue action to upsert `participants/{uid}` with this session's stats
   Map<String, dynamic> toPlayerSummaryQueueAction() {
     return {
-      'collection': 'playerSummaries',
+      'collection': 'participants',
       'doc': uid,
       'merge': true,
       'data': {

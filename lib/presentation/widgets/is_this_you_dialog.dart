@@ -11,6 +11,7 @@ import '../../domain/game_data_notifier.dart';
 import '../../domain/utils/database.dart';
 import '../../domain/utils/device_and_personal_data.dart';
 import 'menu_dialog.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class IsThisYouDialog extends ConsumerStatefulWidget {
   final Person person;
@@ -85,13 +86,13 @@ class _IsThisYouDialogState extends ConsumerState<IsThisYouDialog> {
                       ref.read(gameDataNotifierProvider.notifier).setPerson(person);
                       await savePersonLocally(person);
 
-                      // Try to reconnect to an existing Firestore session
+                      // Try to reconnect to an existing Firestore session.
                       final bool reconnected = await reconnectToGameSession(person: person);
 
                       bool isReturningUser = false;
 
                       if (reconnected && currentLevelDataRef != null) {
-                        // Returning user — restore their level from Firestore
+                        // Online path — restore level from Firestore.
                         try {
                           final levelDoc = await currentLevelDataRef!.get();
                           final firestoreLevel =
@@ -100,14 +101,24 @@ class _IsThisYouDialogState extends ConsumerState<IsThisYouDialog> {
                           ref.read(gameDataNotifierProvider.notifier).loadLevel(restoredId);
                           isReturningUser = true;
                         } catch (_) {
-                          // Fallback: can't read level, start fresh
+                          // Can't read level — start fresh.
                           await saveUserInFirestore(person);
                           ref.read(gameDataNotifierProvider.notifier).resetGame();
                         }
                       } else {
-                        // New user — add to Firestore and start fresh
-                        await saveUserInFirestore(person);
-                        ref.read(gameDataNotifierProvider.notifier).resetGame();
+                        // Offline or new user — check the per-UID level cache
+                        // written by "Done for the week" on this device.
+                        final prefs = await SharedPreferences.getInstance();
+                        final cachedLevel = prefs.getInt('nextLevel_${person.uid}');
+                        if (cachedLevel != null && cachedLevel > 0) {
+                          // Returning participant who completed a previous week.
+                          ref.read(gameDataNotifierProvider.notifier).loadLevel(cachedLevel);
+                          isReturningUser = true;
+                        } else {
+                          // Genuinely new user — add to Firestore and start at Level 1.
+                          await saveUserInFirestore(person);
+                          ref.read(gameDataNotifierProvider.notifier).resetGame();
+                        }
                       }
 
                       setState(() { isProcessing = false; });
@@ -115,14 +126,14 @@ class _IsThisYouDialogState extends ConsumerState<IsThisYouDialog> {
                       if (context.mounted) {
                         Navigator.of(context).pop();
                         if (isReturningUser) {
-                          // Show "Welcome back!" dialog for returning users
+                          // Show "Welcome back" with Next Level + Restart options.
                           showDialog(
                             barrierDismissible: false,
                             context: context,
                             builder: (_) => const WelcomeBackDialog(),
                           );
                         }
-                        // New users: dialog closes and game starts directly
+                        // New users: dialog closes and game starts at Level 1.
                       }
                     },
               child: Text(AppLocalizations.of(context)!.yesButton),

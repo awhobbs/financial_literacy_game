@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 
 import 'firebase_options.dart';
-import 'firebase_options_tester.dart';
+import 'firebase_options_site2.dart';
 import 'config/themes.dart';
 import 'config/constants.dart';
 import 'l10n/l10n.dart';
@@ -16,10 +16,13 @@ import 'presentation/screens/home_page.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  const flavor = String.fromEnvironment('FLAVOR', defaultValue: 'production');
+  // Both sites are full production builds.
+  // FLAVOR=site2  → finlitsim  (second country / site B)
+  // FLAVOR absent → ofinsen-dc06d (first country / site A, default)
+  const flavor = String.fromEnvironment('FLAVOR', defaultValue: 'site1');
   await Firebase.initializeApp(
-    options: flavor == 'tester'
-        ? TesterFirebaseOptions.currentPlatform
+    options: flavor == 'site2'
+        ? Site2FirebaseOptions.currentPlatform
         : DefaultFirebaseOptions.currentPlatform,
   );
 

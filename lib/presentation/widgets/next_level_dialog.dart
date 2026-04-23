@@ -2,10 +2,16 @@ import 'package:financial_literacy_game/domain/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:financial_literacy_game/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../config/color_palette.dart';
+import '../../domain/entities/levels.dart';
 import '../../domain/game_data_notifier.dart';
+import '../../domain/utils/database.dart';
+import '../../offline/offline_storage.dart';
+import '../../offline/offline_sync.dart';
 import 'menu_dialog.dart';
+import 'sign_in_dialog_with_code.dart';
 
 class NextLevelDialog extends StatelessWidget {
   final WidgetRef ref;
@@ -13,6 +19,79 @@ class NextLevelDialog extends StatelessWidget {
     required this.ref,
     super.key,
   });
+
+  Future<void> _endSession(BuildContext context) async {
+    // Capture the NEXT level before any async work so the player can
+    // continue from it when they sign in again.
+    final completedLevelId = ref.read(gameDataNotifierProvider).levelId;
+    final nextLevelId = (completedLevelId + 1).clamp(0, levels.length - 1);
+    final weekNumber = completedLevelId + 1; // level 0 = week 1
+
+    // Show "See you next week!" before clearing anything.
+    if (context.mounted) {
+      await showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (ctx) => AlertDialog(
+          title: const Text('See you next week!'),
+          content: Text(
+            'Week $weekNumber is done. Great work! Your progress has been saved.',
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('OK'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (!context.mounted) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final uid = prefs.getString('uid');
+    if (uid != null && uid.isNotEmpty) {
+      await OfflineSync.sync(uid);
+      // Cache next level keyed to this UID so returning participants can
+      // continue offline (week 2+) even without a network connection.
+      await prefs.setInt('nextLevel_$uid', nextLevelId);
+    }
+
+    // Mark the completed level as won in Firestore and create the next level
+    // document so that when the participant returns, reconnectToGameSession
+    // finds the correct level and WelcomeBackDialog shows "Start Level X".
+    newLevelFirestore(
+      levelID: nextLevelId,
+      startingCash: levels[nextLevelId].startingCash,
+    );
+
+    // Clear player identity but NOT the offline queue so that any
+    // rounds that failed to sync can be retried when this player
+    // signs in again.
+    await OfflineStorage.clearSimpleState();
+    await prefs.remove('uid');
+    await prefs.remove('personExists');
+    await prefs.remove('firstName');
+    await prefs.remove('lastName');
+    await prefs.remove('lastRoundNumber');
+    await prefs.remove('lastSessionId');
+
+    // Store completed week so researchers can cross-reference device sessions.
+    await prefs.setInt('lastCompletedWeek', weekNumber);
+
+    // Reset in memory without overwriting the level we just saved.
+    ref.read(gameDataNotifierProvider.notifier).resetGameLocalNoSave();
+
+    if (context.mounted) {
+      Navigator.of(context).pop();
+      showDialog(
+        barrierDismissible: false,
+        context: context,
+        builder: (_) => const SignInDialogNew(),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,12 +107,42 @@ class NextLevelDialog extends StatelessWidget {
         ),
       ),
       actions: [
-        TextButton(
+        // Continue at current level — marks level solved as acknowledged so
+        // the dialog does not re-appear on every subsequent round.
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: ColorPalette().buttonBackground,
+            foregroundColor: ColorPalette().lightText,
+          ),
           onPressed: () {
             Navigator.pop(context);
-            ref.read(gameDataNotifierProvider.notifier).moveToNextLevel();
+            ref
+                .read(gameDataNotifierProvider.notifier)
+                .acknowledgeCurrentLevelSolved();
           },
-          child: Text(AppLocalizations.of(context)!.next.capitalize()),
+          child: const Text('Continue Playing'),
+        ),
+        Builder(builder: (context) {
+          final currentLevelId = ref.read(gameDataNotifierProvider).levelId;
+          final nextDisplay    = currentLevelId + 2; // 0-indexed → 1-indexed next
+          return ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: ColorPalette().buttonBackground,
+              foregroundColor: ColorPalette().lightText,
+            ),
+            onPressed: () {
+              Navigator.pop(context);
+              ref.read(gameDataNotifierProvider.notifier).moveToNextLevel();
+            },
+            child: Text('Go to Level $nextDisplay'),
+          );
+        }),
+        TextButton(
+          onPressed: () => _endSession(context),
+          child: Text(
+            'Done for the week',
+            style: TextStyle(color: ColorPalette().darkText),
+          ),
         ),
       ],
     );

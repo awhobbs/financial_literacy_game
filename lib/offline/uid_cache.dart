@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -5,7 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class UIDCache {
   static const String _cacheKey = 'uid_cache';
   static const String _cacheVersionKey = 'uid_cache_version';
-  static const int _currentVersion = 2;
+  static const int _currentVersion = 3; // bumped: added uids_phase1.csv
 
   // ignore: prefer_final_fields
   static Set<String> _memoryCache = {};
@@ -38,59 +39,61 @@ class UIDCache {
     _isLoaded = true;
   }
 
-  /// Load CSV data from bundled asset
+  /// CSV files to load for offline UID validation
+  static const List<String> _csvAssets = [
+    'uids/Uganda_Pilot_All_Regions.csv',
+    'uids/uids_phase1.csv',
+  ];
+
+  /// Load CSV data from all bundled assets
   static Future<void> _loadFromAsset(SharedPreferences prefs) async {
-    try {
-      final csvString = await rootBundle.loadString(
-        'uids/Uganda_Pilot_All_Regions.csv',
-      );
+    final uids = <String>[];
+    final uidDataEntries = <String>[];
 
-      final lines = csvString.split('\n');
-      if (lines.isEmpty) return;
+    for (final assetPath in _csvAssets) {
+      try {
+        final csvString = await rootBundle.loadString(assetPath);
+        final lines = csvString.split('\n');
+        if (lines.isEmpty) continue;
 
-      // Skip header row
-      final dataLines = lines.skip(1);
+        // Skip header row
+        for (final line in lines.skip(1)) {
+          if (line.trim().isEmpty) continue;
 
-      final uids = <String>[];
-      final uidDataEntries = <String>[];
+          final parts = line.split(',');
+          if (parts.isEmpty) continue;
 
-      for (final line in dataLines) {
-        if (line.trim().isEmpty) continue;
+          final uid = parts[0].trim().toUpperCase();
+          if (uid.isEmpty) continue;
 
-        final parts = line.split(',');
-        if (parts.isEmpty) continue;
+          if (_memoryCache.contains(uid)) continue; // deduplicate
 
-        final uid = parts[0].trim();
-        if (uid.isEmpty) continue;
+          uids.add(uid);
 
-        uids.add(uid);
+          final firstName = parts.length > 1 ? parts[1].trim() : '';
+          final lastName = parts.length > 2 ? parts[2].trim() : '';
+          final enumerator = parts.length > 3 ? parts[3].trim() : '';
+          final region = parts.length > 4 ? parts[4].trim() : '';
 
-        // Store full data: uid|firstName|lastName|enumerator|region
-        final firstName = parts.length > 1 ? parts[1].trim() : '';
-        final lastName = parts.length > 2 ? parts[2].trim() : '';
-        final enumerator = parts.length > 3 ? parts[3].trim() : '';
-        final region = parts.length > 4 ? parts[4].trim() : '';
+          uidDataEntries.add('$uid|$firstName|$lastName|$enumerator|$region');
 
-        uidDataEntries.add('$uid|$firstName|$lastName|$enumerator|$region');
-
-        // Also populate memory cache
-        _memoryCache.add(uid);
-        _uidDataCache[uid] = {
-          'firstName': firstName,
-          'lastName': lastName,
-          'enumerator': enumerator,
-          'region': region,
-        };
+          _memoryCache.add(uid);
+          _uidDataCache[uid] = {
+            'firstName': firstName,
+            'lastName': lastName,
+            'enumerator': enumerator,
+            'region': region,
+          };
+        }
+      } catch (e) {
+        // This asset may not be present in all build flavors — skip it
+        debugPrint('UIDCache: could not load $assetPath: $e');
       }
-
-      // Save to SharedPreferences
-      await prefs.setStringList(_cacheKey, uids);
-      await prefs.setStringList('${_cacheKey}_data', uidDataEntries);
-      await prefs.setInt(_cacheVersionKey, _currentVersion);
-    } catch (e) {
-      // CSV loading failed - continue without offline cache
-      // App will fall back to online-only validation
     }
+
+    await prefs.setStringList(_cacheKey, uids);
+    await prefs.setStringList('${_cacheKey}_data', uidDataEntries);
+    await prefs.setInt(_cacheVersionKey, _currentVersion);
   }
 
   /// Load full UID data from SharedPreferences

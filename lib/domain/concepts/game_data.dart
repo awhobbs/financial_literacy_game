@@ -107,3 +107,7 @@ class GameData {
 
   double get conversionRate => L10n.getConversionRate(locale);
 }
+
+
+
+

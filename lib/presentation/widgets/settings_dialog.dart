@@ -79,9 +79,16 @@ class SettingsDialog extends ConsumerWidget {
                 await OfflineSync.sync(uid);
               }
 
-              // Clear all local state
+              // Clear player identity but NOT the offline queue so that any
+              // rounds that failed to sync can be retried on next sign-in.
               await OfflineStorage.clearSimpleState();
-              await prefs.clear();
+              await prefs.remove('uid');
+              await prefs.remove('personExists');
+              await prefs.remove('firstName');
+              await prefs.remove('lastName');
+              await prefs.remove('lastPlayedLevelID');
+              await prefs.remove('lastRoundNumber');
+              await prefs.remove('lastSessionId');
               ref.read(gameDataNotifierProvider.notifier).resetGame();
 
               if (context.mounted) {
@@ -95,7 +102,85 @@ class SettingsDialog extends ConsumerWidget {
             },
             child: const Text('New Player'),
           ),
-          // COMMENTED OUT: OPTION TO ADVANCE TO THE NEXT LEVEL
+          const SizedBox(height: 10),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              elevation: 5.0,
+              backgroundColor: Colors.red.shade700,
+              foregroundColor: ColorPalette().lightText,
+            ),
+            onPressed: () async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Clear Cache'),
+                  content: const Text(
+                    'This will erase all saved data and start a completely fresh session.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(false),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(true),
+                      child: const Text('Clear'),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmed != true) return;
+
+              final prefs = await SharedPreferences.getInstance();
+              await OfflineStorage.clearSimpleState();
+              await OfflineStorage.clearLastRound();
+              await prefs.clear();
+              ref.read(gameDataNotifierProvider.notifier).resetGame();
+
+              if (context.mounted) {
+                Navigator.of(context).pop();
+                showDialog(
+                  barrierDismissible: false,
+                  context: context,
+                  builder: (_) => const SignInDialogNew(),
+                );
+              }
+            },
+            child: const Text('Clear Cache'),
+          ),
+          const SizedBox(height: 10),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              elevation: 5.0,
+              backgroundColor: ColorPalette().buttonBackground,
+              foregroundColor: ColorPalette().lightText,
+            ),
+            onPressed: () async {
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Restart Game'),
+                  content: const Text(
+                    'This will restart from the beginning for the current player.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(false),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(true),
+                      child: const Text('Restart'),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmed != true) return;
+              ref.read(gameDataNotifierProvider.notifier).resetGame();
+              if (context.mounted) Navigator.of(context).pop();
+            },
+            child: const Text('Restart Game'),
+          ),
           const SizedBox(height: 10),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
@@ -132,15 +217,6 @@ class SettingsDialog extends ConsumerWidget {
             child:
                 Text(AppLocalizations.of(context)!.languagesTitle.capitalize()),
           ),
-          // ElevatedButton(
-          //   style: ElevatedButton.styleFrom(
-          //     elevation: 5.0,
-          //     backgroundColor: ColorPalette().buttonBackground,
-          //     foregroundColor: ColorPalette().lightText,
-          //   ),
-          //   onPressed: () {},
-          //   child: const Text('Restart Game'),
-          // ),
         ],
       ),
       ),

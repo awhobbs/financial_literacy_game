@@ -17,7 +17,6 @@ import 'entities/levels.dart';
 import 'concepts/recorded_data.dart';
 
 import 'utils/database.dart';
-import 'utils/utils.dart';
 import 'utils/device_and_personal_data.dart';
 
 import '../../offline/offline_storage.dart';
@@ -38,6 +37,10 @@ class GameDataNotifier extends StateNotifier<GameData> {
   double _lastSavingsRate = 0.0;
   double _lastLoanInterestRate = 0.0;
   bool _lastAssetDied = false;
+
+  // Prevents the level-complete dialog from repeating after the player
+  // clicks "Continue Playing" on the same level.  Reset on new level / reset.
+  bool _levelSolvedAcknowledged = false;
 
   // Session-level accumulator (reset on each new session)
   SessionAccumulator? _sessionAccumulator;
@@ -62,7 +65,16 @@ class GameDataNotifier extends StateNotifier<GameData> {
         ),
       ],
     ),
-  );
+  ) {
+    // Initialise a session so that the very first player's rounds are always
+    // captured even before resetGame() is called.
+    _sessionId = DateTime.now().millisecondsSinceEpoch.toString();
+    _sessionAccumulator = SessionAccumulator(
+      uid: 'UNKNOWN',
+      sessionId: _sessionId!,
+      startedAt: DateTime.now(),
+    );
+  }
 
   // ----------------------------------------------------------
   // 🔥 UNIVERSAL AUTOSAVE (SAFE — no JSON!)
@@ -120,6 +132,14 @@ class GameDataNotifier extends StateNotifier<GameData> {
 
   /// Get the current round number
   int get currentRoundNumber => _currentRoundNumber;
+
+  /// Called when the player clicks "Continue Playing" on the level-complete
+  /// dialog.  Prevents the dialog from re-appearing on subsequent rounds
+  /// while keeping the player on the same level.
+  void acknowledgeCurrentLevelSolved() {
+    _levelSolvedAcknowledged = true;
+    state = state.copyWith(currentLevelSolved: false);
+  }
 
   // ----------------------------------------------------------
   // PERSON
@@ -206,7 +226,25 @@ class GameDataNotifier extends StateNotifier<GameData> {
 
     state = state.copyWith(cash: newCash);
 
-    // save to Firestore (legacy)
+    // ── Set outcome flags SYNCHRONOUSLY (before any await) ────────────
+    // This ensures call sites that do NOT await advance() still read the
+    // correct isBankrupt / currentLevelSolved / gameIsFinished values.
+    if (state.cash < 0) {
+      state = state.copyWith(isBankrupt: true);
+    }
+    // Only trigger the level-complete flag once per level.  After the player
+    // acknowledges ("Continue Playing") _levelSolvedAcknowledged is true and
+    // this block is skipped until they advance to the next level.
+    if (state.cash >= levels[state.levelId].cashGoal &&
+        !_levelSolvedAcknowledged) {
+      if (state.levelId + 1 >= levels.length) {
+        state = state.copyWith(gameIsFinished: true);
+      } else {
+        state = state.copyWith(currentLevelSolved: true);
+      }
+    }
+
+    // save to Firestore (legacy) — fire-and-forget, does not affect flags
     advancePeriodFirestore(
       newCashValue: newCash,
       buyDecision: buyDecision,
@@ -222,7 +260,7 @@ class GameDataNotifier extends StateNotifier<GameData> {
       totalExpenses: calculateTotalExpenses(),
     );
 
-    // Increment round number and create RoundData
+    // Increment round number and record analytics (async — after flags set)
     _currentRoundNumber++;
     await _recordRoundData(
       buyDecision: buyDecision,
@@ -230,20 +268,6 @@ class GameDataNotifier extends StateNotifier<GameData> {
       stateBefore: stateBefore,
       stateAfter: stateAfter,
     );
-
-    // bankrupt?
-    if (state.cash < 0) {
-      state = state.copyWith(isBankrupt: true);
-    }
-
-    // level completion
-    if (state.cash >= levels[state.levelId].cashGoal) {
-      if (state.levelId + 1 >= levels.length) {
-        state = state.copyWith(gameIsFinished: true);
-      } else {
-        state = state.copyWith(currentLevelSolved: true);
-      }
-    }
 
     _autosave();
   }
@@ -322,7 +346,10 @@ class GameDataNotifier extends StateNotifier<GameData> {
     // Queue for offline sync
     final uid = state.person.uid ?? 'UNKNOWN';
     final queue = OfflineQueue(uid);
+    // 1. Detailed round → participants/{uid}/rounds/{roundKey}  (subcollection)
     await queue.add(roundData.toQueueAction());
+    // 2. Compact decision → participantDecisions/{uid} flat map  (researcher view)
+    await queue.add(roundData.toParticipantDecisionQueueAction());
 
     debugPrint("Round $currentRoundNumber queued for sync [$speedFlag, ${decisionTimeMs}ms]");
   }
@@ -332,12 +359,12 @@ class GameDataNotifier extends StateNotifier<GameData> {
   // ----------------------------------------------------------
   Future<bool> buyAsset(
       Asset asset,
-      Function showNotEnoughCash,
-      Function showAnimalDied,
+      Future<bool> Function() showNotEnoughCash,
+      Future<bool> Function(Asset) showAnimalDied,
       double newCashInterest,
       ) async {
     if (state.cash < asset.price) {
-      showNotEnoughCash();
+      await showNotEnoughCash();
       return false;
     }
 
@@ -362,7 +389,7 @@ class GameDataNotifier extends StateNotifier<GameData> {
   Future<void> loanAsset(
       Loan loan,
       Asset asset,
-      Function showAnimalDied,
+      Future<bool> Function(Asset) showAnimalDied,
       double newCashInterest,
       ) async {
     bool died = await _animalDied(asset, showAnimalDied);
@@ -415,6 +442,8 @@ class GameDataNotifier extends StateNotifier<GameData> {
   void _loadLevel(int id) {
     if (id < 0 || id >= levels.length) return;
 
+    _levelSolvedAcknowledged = false; // allow congrats on the new level
+
     state = state.copyWith(
       levelId: id,
       cash: levels[id].startingCash,
@@ -435,7 +464,7 @@ class GameDataNotifier extends StateNotifier<GameData> {
     state = state.copyWith(loans: [...state.loans, newLoan]);
   }
 
-  Future<bool> _animalDied(Asset asset, Function show) async {
+  Future<bool> _animalDied(Asset asset, Future<bool> Function(Asset) show) async {
     final died = asset.riskLevel > Random().nextDouble();
     if (died) {
       markAssetDied(); // Track for round data
@@ -504,6 +533,7 @@ class GameDataNotifier extends StateNotifier<GameData> {
   // RESET GAME
   // ----------------------------------------------------------
   void resetGame() {
+    _levelSolvedAcknowledged = false;
     // Write session summary for the session that is ending
     _queueSessionSummary();
 
@@ -528,6 +558,57 @@ class GameDataNotifier extends StateNotifier<GameData> {
     );
 
     _autosave();
+  }
+
+  // ----------------------------------------------------------
+  // RESET GAME LOCAL — resets to level 1 without creating a new
+  // Firestore session. Use when ending a session so the next
+  // player signs in fresh (avoids writing to Firestore with the
+  // previous player's UID).
+  // ----------------------------------------------------------
+  void resetGameLocal() {
+    _levelSolvedAcknowledged = false;
+    _queueSessionSummary();
+
+    state = GameData(
+      person: state.person,
+      locale: state.locale,
+      cash: levels[0].startingCash,
+      personalIncome:
+      levels[0].includePersonalIncome ? levels[0].personalIncome : 0,
+      personalExpenses:
+      levels[0].includePersonalIncome ? levels[0].personalExpenses : 0,
+      confettiController: state.confettiController,
+    );
+
+    startSession();
+    saveLevelIDLocally(0);
+    _autosave();
+  }
+
+  // ----------------------------------------------------------
+  // RESET GAME LOCAL (NO SAVE) — same as resetGameLocal but does
+  // NOT write levelId or cash to local storage. Use from
+  // _endSession when the caller wants to persist the player's
+  // actual progress level before clearing prefs.
+  // ----------------------------------------------------------
+  void resetGameLocalNoSave() {
+    _levelSolvedAcknowledged = false;
+    _queueSessionSummary();
+
+    state = GameData(
+      person: state.person,
+      locale: state.locale,
+      cash: levels[0].startingCash,
+      personalIncome:
+      levels[0].includePersonalIncome ? levels[0].personalIncome : 0,
+      personalExpenses:
+      levels[0].includePersonalIncome ? levels[0].personalExpenses : 0,
+      confettiController: state.confettiController,
+    );
+
+    startSession();
+    // Intentionally no saveLevelIDLocally / _autosave — caller handles this.
   }
 
   // ----------------------------------------------------------
