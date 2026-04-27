@@ -51,24 +51,15 @@ class NextLevelDialog extends StatelessWidget {
 
     final prefs = await SharedPreferences.getInstance();
     final uid = prefs.getString('uid');
+
+    // Save next level and week before clearing prefs.
     if (uid != null && uid.isNotEmpty) {
-      await OfflineSync.sync(uid);
-      // Cache next level keyed to this UID so returning participants can
-      // continue offline (week 2+) even without a network connection.
       await prefs.setInt('nextLevel_$uid', nextLevelId);
     }
-
-    // Mark the completed level as won in Firestore and create the next level
-    // document so that when the participant returns, reconnectToGameSession
-    // finds the correct level and WelcomeBackDialog shows "Start Level X".
-    newLevelFirestore(
-      levelID: nextLevelId,
-      startingCash: levels[nextLevelId].startingCash,
-    );
+    await prefs.setInt('lastCompletedWeek', weekNumber);
 
     // Clear player identity but NOT the offline queue so that any
-    // rounds that failed to sync can be retried when this player
-    // signs in again.
+    // rounds that failed to sync can be retried when this player signs in again.
     await OfflineStorage.clearSimpleState();
     await prefs.remove('uid');
     await prefs.remove('personExists');
@@ -77,12 +68,10 @@ class NextLevelDialog extends StatelessWidget {
     await prefs.remove('lastRoundNumber');
     await prefs.remove('lastSessionId');
 
-    // Store completed week so researchers can cross-reference device sessions.
-    await prefs.setInt('lastCompletedWeek', weekNumber);
-
-    // Reset in memory without overwriting the level we just saved.
+    // Reset in memory immediately so the next player sees a clean state.
     ref.read(gameDataNotifierProvider.notifier).resetGameLocalNoSave();
 
+    // Navigate to sign-in right away — sync and Firestore writes happen in background.
     if (context.mounted) {
       Navigator.of(context).pop();
       showDialog(
@@ -91,6 +80,15 @@ class NextLevelDialog extends StatelessWidget {
         builder: (_) => const SignInDialogNew(),
       );
     }
+
+    // Background: sync queue and mark level complete in Firestore.
+    if (uid != null && uid.isNotEmpty) {
+      OfflineSync.sync(uid);
+    }
+    newLevelFirestore(
+      levelID: nextLevelId,
+      startingCash: levels[nextLevelId].startingCash,
+    );
   }
 
   @override

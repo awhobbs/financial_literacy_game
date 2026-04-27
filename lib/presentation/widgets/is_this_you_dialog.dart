@@ -87,7 +87,14 @@ class _IsThisYouDialogState extends ConsumerState<IsThisYouDialog> {
                       await savePersonLocally(person);
 
                       // Try to reconnect to an existing Firestore session.
-                      final bool reconnected = await reconnectToGameSession(person: person);
+                      // Wrap with timeout + catch so offline devices don't freeze.
+                      bool reconnected = false;
+                      try {
+                        reconnected = await reconnectToGameSession(person: person)
+                            .timeout(const Duration(seconds: 5));
+                      } catch (_) {
+                        reconnected = false;
+                      }
 
                       bool isReturningUser = false;
 
@@ -102,7 +109,7 @@ class _IsThisYouDialogState extends ConsumerState<IsThisYouDialog> {
                           isReturningUser = true;
                         } catch (_) {
                           // Can't read level — start fresh.
-                          await saveUserInFirestore(person);
+                          saveUserInFirestore(person); // fire-and-forget: syncs when online
                           ref.read(gameDataNotifierProvider.notifier).resetGame();
                         }
                       } else {
@@ -115,8 +122,8 @@ class _IsThisYouDialogState extends ConsumerState<IsThisYouDialog> {
                           ref.read(gameDataNotifierProvider.notifier).loadLevel(cachedLevel);
                           isReturningUser = true;
                         } else {
-                          // Genuinely new user — add to Firestore and start at Level 1.
-                          await saveUserInFirestore(person);
+                          // Genuinely new user — register in Firestore when back online.
+                          saveUserInFirestore(person); // fire-and-forget: syncs when online
                           ref.read(gameDataNotifierProvider.notifier).resetGame();
                         }
                       }

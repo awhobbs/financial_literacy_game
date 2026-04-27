@@ -18,13 +18,11 @@ class RoundCompleteDialog extends StatelessWidget {
 
     final prefs = await SharedPreferences.getInstance();
     final uid = prefs.getString('uid');
-    if (uid != null && uid.isNotEmpty) {
-      await OfflineSync.sync(uid);
-    }
 
-    // Clear player identity but NOT the offline queue so that any
-    // rounds that failed to sync can be retried when this player
-    // signs in again.
+    // Save current level so "Continue from Level X" is shown on next sign-in.
+    await prefs.setInt('lastPlayedLevelID', currentLevelId);
+
+    // Clear player identity but NOT the offline queue.
     await OfflineStorage.clearSimpleState();
     await prefs.remove('uid');
     await prefs.remove('personExists');
@@ -33,13 +31,10 @@ class RoundCompleteDialog extends StatelessWidget {
     await prefs.remove('lastRoundNumber');
     await prefs.remove('lastSessionId');
 
-    // Save current level so "Continue from Level X" is shown when the
-    // player signs in again on the same device.
-    await prefs.setInt('lastPlayedLevelID', currentLevelId);
-
-    // Reset in memory without overwriting the level we just saved.
+    // Reset in memory immediately so the next player sees a clean state.
     ref.read(gameDataNotifierProvider.notifier).resetGameLocalNoSave();
 
+    // Navigate to sign-in right away — sync happens in background.
     if (context.mounted) {
       Navigator.of(context).pop();
       showDialog(
@@ -47,6 +42,11 @@ class RoundCompleteDialog extends StatelessWidget {
         context: context,
         builder: (_) => const SignInDialogNew(),
       );
+    }
+
+    // Background sync — does not block navigation.
+    if (uid != null && uid.isNotEmpty) {
+      OfflineSync.sync(uid);
     }
   }
 

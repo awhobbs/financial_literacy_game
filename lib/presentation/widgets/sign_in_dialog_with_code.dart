@@ -51,7 +51,7 @@ class _SignInDialogNewState extends ConsumerState<SignInDialogNew> {
     // Try Firestore first, with a timeout so offline mode falls through quickly
     try {
       final person = await searchUserbyUIDInFirestore(uid)
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 3));
       if (person != null) {
         return person;
       }

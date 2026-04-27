@@ -4,11 +4,15 @@ import 'package:financial_literacy_game/domain/utils/utils.dart';
 import 'package:flutter/material.dart';
 import 'package:financial_literacy_game/l10n/app_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../domain/game_data_notifier.dart';
 import '../../domain/utils/database.dart';
+import '../../offline/offline_storage.dart';
+import '../../offline/offline_sync.dart';
+import 'sign_in_dialog_with_code.dart';
 
-class WonGameDialog extends StatelessWidget {
+class WonGameDialog extends StatefulWidget {
   final WidgetRef ref;
   const WonGameDialog({
     required this.ref,
@@ -16,31 +20,101 @@ class WonGameDialog extends StatelessWidget {
   });
 
   @override
+  State<WonGameDialog> createState() => _WonGameDialogState();
+}
+
+class _WonGameDialogState extends State<WonGameDialog> {
+  bool _isProcessing = false;
+
+  Future<void> _returnToHomePage(BuildContext context) async {
+    setState(() => _isProcessing = true);
+
+    final prefs = await SharedPreferences.getInstance();
+    final uid = prefs.getString('uid');
+
+    await OfflineStorage.clearSimpleState();
+    await prefs.remove('uid');
+    await prefs.remove('personExists');
+    await prefs.remove('firstName');
+    await prefs.remove('lastName');
+    await prefs.remove('lastRoundNumber');
+    await prefs.remove('lastSessionId');
+    await prefs.remove('lastPlayedLevelID');
+
+    widget.ref.read(gameDataNotifierProvider.notifier).resetGameLocalNoSave();
+
+    // Navigate immediately — sync and Firestore writes happen in background.
+    if (context.mounted) {
+      Navigator.of(context).pop();
+      showDialog(
+        barrierDismissible: false,
+        context: context,
+        builder: (_) => const SignInDialogNew(),
+      );
+    }
+
+    // Background: sync queue and mark session complete.
+    if (uid != null && uid.isNotEmpty) {
+      OfflineSync.sync(uid);
+    }
+    endCurrentGameSession(status: Status.won);
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      content: SizedBox(
-        height: 100,
-        width: 100,
-        child: AutoSizeText(
-          AppLocalizations.of(context)!.gameFinished.capitalize(),
-          style: TextStyle(
-            fontSize: 20,
-            height:
-                2, //line height 200%, 1= 100%, were 0.9 = 90% of actual line height
-            color: ColorPalette().gameWinText, // font color
-            fontStyle: FontStyle.normal,
+    return Stack(
+      children: [
+        AlertDialog(
+          backgroundColor: ColorPalette().backgroundContentCard,
+          title: Text(
+            AppLocalizations.of(context)!.congratulations.capitalize(),
+            style: TextStyle(
+              color: ColorPalette().gameWinText,
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
+            ),
           ),
+          content: SizedBox(
+            height: 100,
+            width: 100,
+            child: AutoSizeText(
+              AppLocalizations.of(context)!.gameFinished.capitalize(),
+              style: TextStyle(
+                fontSize: 20,
+                height: 2,
+                color: ColorPalette().gameWinText,
+                fontStyle: FontStyle.normal,
+              ),
+            ),
+          ),
+          actions: [
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: ColorPalette().buttonBackground,
+                foregroundColor: ColorPalette().lightText,
+              ),
+              onPressed: _isProcessing
+                  ? null
+                  : () => _returnToHomePage(context),
+              child: const Text('See You Next Week!'),
+            ),
+            TextButton(
+              onPressed: _isProcessing
+                  ? null
+                  : () {
+                      endCurrentGameSession(status: Status.won);
+                      widget.ref.read(gameDataNotifierProvider.notifier).resetGame();
+                      Navigator.pop(context);
+                    },
+              child: Text(
+                AppLocalizations.of(context)!.restart.capitalize(),
+                style: TextStyle(color: ColorPalette().darkText),
+              ),
+            ),
+          ],
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () {
-            endCurrentGameSession(status: Status.won);
-            ref.read(gameDataNotifierProvider.notifier).resetGame();
-            Navigator.pop(context);
-          },
-          child: Text(AppLocalizations.of(context)!.restart.capitalize()),
-        ),
+        if (_isProcessing)
+          const Center(child: CircularProgressIndicator()),
       ],
     );
   }

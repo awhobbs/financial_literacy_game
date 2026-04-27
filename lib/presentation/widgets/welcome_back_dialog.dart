@@ -94,8 +94,8 @@ class _WelcomeBackDialogState extends ConsumerState<WelcomeBackDialog> {
                     ? null
                     : () async {
                         setState(() { isClicked = true; });
-                        await endCurrentGameSession(
-                            status: Status.abandoned, person: person);
+                        // Fire-and-forget: Firestore may be offline, game resets locally.
+                        endCurrentGameSession(status: Status.abandoned, person: person);
                         ref.read(gameDataNotifierProvider.notifier).resetGame();
                         if (context.mounted) {
                           Navigator.of(context).pop();

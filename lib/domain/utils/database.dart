@@ -97,13 +97,13 @@ void restartLevelFirebase({
   required double startingCash,
 }) async {
   if (currentLevelDataRef == null) return;
-
-  await currentLevelDataRef!.set({
-    "levelStatus": Status.lost.name,
-    "completedOn": DateTime.now(),
-  }, SetOptions(merge: true));
-
-  _createNewLevel(level: level, startingCash: startingCash);
+  try {
+    await currentLevelDataRef!.set({
+      "levelStatus": Status.lost.name,
+      "completedOn": DateTime.now(),
+    }, SetOptions(merge: true));
+    _createNewLevel(level: level, startingCash: startingCash);
+  } catch (_) {}
 }
 
 // ----------------------------------------------------------
@@ -221,21 +221,26 @@ Future<void> endCurrentGameSession({
   required Status status,
   Person? person,
 }) async {
-  if (currentGameSessionRef == null) {
-    if (person == null) return;
-    bool ok = await reconnectToGameSession(person: person);
-    if (!ok) return;
-  }
+  try {
+    if (currentGameSessionRef == null) {
+      if (person == null) return;
+      bool ok = await reconnectToGameSession(person: person)
+          .timeout(const Duration(seconds: 5));
+      if (!ok) return;
+    }
 
-  await currentLevelDataRef!.set({
-    "levelStatus": status.name,
-    "completedOn": DateTime.now(),
-  }, SetOptions(merge: true));
+    if (currentLevelDataRef == null || currentGameSessionRef == null) return;
 
-  await currentGameSessionRef!.set({
-    "sessionStatus": status.name,
-    "completedOn": DateTime.now(),
-  }, SetOptions(merge: true));
+    await currentLevelDataRef!.set({
+      "levelStatus": status.name,
+      "completedOn": DateTime.now(),
+    }, SetOptions(merge: true));
+
+    await currentGameSessionRef!.set({
+      "sessionStatus": status.name,
+      "completedOn": DateTime.now(),
+    }, SetOptions(merge: true));
+  } catch (_) {}
 }
 
 // ----------------------------------------------------------
@@ -245,12 +250,14 @@ void newLevelFirestore({
   required int levelID,
   required double startingCash,
 }) async {
-  await currentLevelDataRef!.set({
-    "levelStatus": Status.won.name,
-    "completedOn": DateTime.now(),
-  }, SetOptions(merge: true));
-
-  _createNewLevel(level: levelID + 1, startingCash: startingCash);
+  if (currentLevelDataRef == null) return;
+  try {
+    await currentLevelDataRef!.set({
+      "levelStatus": Status.won.name,
+      "completedOn": DateTime.now(),
+    }, SetOptions(merge: true));
+    _createNewLevel(level: levelID + 1, startingCash: startingCash);
+  } catch (_) {}
 }
 
 // ----------------------------------------------------------
@@ -261,33 +268,36 @@ void advancePeriodFirestore({
   required BuyDecision buyDecision,
   required Asset offeredAsset,
 }) async {
-  DocumentSnapshot snap = await currentLevelDataRef!.get();
+  if (currentLevelDataRef == null) return;
+  try {
+    DocumentSnapshot snap = await currentLevelDataRef!.get();
 
-  List<double> cash = List.from(snap.get("cash"));
-  List<String> decisions = List.from(snap.get("decisions"));
-  List<String> times = List<String>.from(snap.get("advanceTimes"));
-  List offered = List.from(snap.get("offeredAssets"));
+    List<double> cash = List.from(snap.get("cash"));
+    List<String> decisions = List.from(snap.get("decisions"));
+    List<String> times = List<String>.from(snap.get("advanceTimes"));
+    List offered = List.from(snap.get("offeredAssets"));
 
-  cash.add(double.parse(newCashValue.toStringAsFixed(2)));
-  decisions.add(buyDecision.name);
-  times.add(DateTime.now().toIso8601String());
+    cash.add(double.parse(newCashValue.toStringAsFixed(2)));
+    decisions.add(buyDecision.name);
+    times.add(DateTime.now().toIso8601String());
 
-  offered.add({
-    "type": offeredAsset.type.name,
-    "price": offeredAsset.price,
-    "income": offeredAsset.income,
-    "riskLevel": offeredAsset.riskLevel,
-    "lifeExpectancy": offeredAsset.lifeExpectancy,
-  });
+    offered.add({
+      "type": offeredAsset.type.name,
+      "price": offeredAsset.price,
+      "income": offeredAsset.income,
+      "riskLevel": offeredAsset.riskLevel,
+      "lifeExpectancy": offeredAsset.lifeExpectancy,
+    });
 
-  snap.reference.set({
-    "periods": FieldValue.increment(1),
-    "cash": cash,
-    "decisions": decisions,
-    "offeredAssets": offered,
-    "advanceTimes": times,
-    "uid": _currentPlayerUID ?? "",
-  }, SetOptions(merge: true));
+    snap.reference.set({
+      "periods": FieldValue.increment(1),
+      "cash": cash,
+      "decisions": decisions,
+      "offeredAssets": offered,
+      "advanceTimes": times,
+      "uid": _currentPlayerUID ?? "",
+    }, SetOptions(merge: true));
+  } catch (_) {}
 }
 
 // ----------------------------------------------------------
